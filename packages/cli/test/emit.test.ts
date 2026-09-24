@@ -36,7 +36,13 @@ describe('emitDeterministicFiles', () => {
     await writeFileAtomic(root, '.ccc/gen/old.ts', '// concept deleted');
     await writeFileAtomic(root, '.ccc/interfaces/old.d.ts', '// concept deleted');
     await emitDeterministicFiles(root, project, exportsByConcept);
-    expect(await listFilesUnder(root, '.ccc/gen')).toEqual(['.ccc/gen/card.test.ts', '.ccc/gen/card.ts', '.ccc/gen/user.ts']);
+    expect(await listFilesUnder(root, '.ccc/gen')).toEqual([
+      '.ccc/gen/card.contract.d.ts',
+      '.ccc/gen/card.test.ts',
+      '.ccc/gen/card.ts',
+      '.ccc/gen/user.contract.d.ts',
+      '.ccc/gen/user.ts',
+    ]);
     expect(await readFileOrNull(root, '.ccc/interfaces/old.d.ts')).toBeNull();
   });
 
@@ -46,8 +52,10 @@ describe('emitDeterministicFiles', () => {
       '.ccc/.gitignore',
       '.ccc/conformance/card.ts',
       '.ccc/conformance/user.ts',
+      '.ccc/gen/card.contract.d.ts',
       '.ccc/gen/card.test.ts',
       '.ccc/gen/card.ts',
+      '.ccc/gen/user.contract.d.ts',
       '.ccc/gen/user.test.ts',
       '.ccc/gen/user.ts',
       '.ccc/interfaces/card.d.ts',

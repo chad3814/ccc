@@ -10,6 +10,7 @@ import {
   INTERFACES_DIR,
   conformancePath,
   conformanceSource,
+  contractPath,
   handwrittenModuleSource,
   interfaceFile,
   modulePath,
@@ -24,6 +25,7 @@ export function expectedFiles(project: Project): Set<string> {
     files.add(testPath(id));
     files.add(interfaceFile(id));
     files.add(conformancePath(id));
+    files.add(contractPath(id));
   }
   return files;
 }
@@ -40,6 +42,7 @@ export async function emitDeterministicFiles(
     ['.ccc/package.json', CCC_PACKAGE_JSON],
     ['.ccc/.gitignore', CCC_GITIGNORE],
     ...files.map((file): [string, string] => [`${INTERFACES_DIR}/${file.path}`, file.content]),
+    ...files.map((file): [string, string] => [contractPath(file.id), file.content]),
   ];
   for (const concept of project.concepts.values()) {
     writes.push([conformancePath(concept.id), conformanceSource(concept.id)]);
