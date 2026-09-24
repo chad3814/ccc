@@ -2,10 +2,11 @@
 
 Write software as a structured **concept model** (Markdown + YAML under `concepts/`) and let ccc compile it into TypeScript. The concept model is the only source of truth; generated code is a read-only build artifact.
 
-Status: research prototype. Only `ccc check` exists so far.
+Status: research prototype. `check`, `build`, `tests`, `approve`, `verify`, `stats`, and `regen --compare` work; runtime wiring and adapters come next.
 
 - Design: [docs/superpowers/specs/2026-09-24-ccc-design.md](docs/superpowers/specs/2026-09-24-ccc-design.md)
 - Writing concepts: [docs/schema.md](docs/schema.md)
+- Building and CI: [docs/building.md](docs/building.md)
 - Example model: [packages/cli/test/fixtures/card-game](packages/cli/test/fixtures/card-game)
 
 ## Development

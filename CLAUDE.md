@@ -15,3 +15,6 @@ Design: `docs/superpowers/specs/2026-09-24-ccc-design.md`. Schema reference: `do
 - Lint is oxlint (typescript-eslint doesn't support TS 7)
 - User-facing problems are returned as `Diagnostic[]`, never thrown
 - Tests live in `packages/*/test/`
+- Tests never call the Claude API; use `test/fake-generator.ts` and `test/pipeline-fixture.ts`
+- Build-pipeline tests run the real tsc/oxlint/Vitest toolchain
+- `pnpm --filter @ccc/cli test:live` builds a concept with the real API (costs money; not part of `pnpm verify`)
