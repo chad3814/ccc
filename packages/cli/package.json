@@ -12,6 +12,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.128.0",
     "@typescript/typescript6": "^6.0.2",
     "commander": "^15.0.0",
     "oxlint": "^1.85.0",
