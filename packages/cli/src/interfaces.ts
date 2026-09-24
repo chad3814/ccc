@@ -1,9 +1,11 @@
-import path from 'node:path';
 import ts from '@typescript/typescript6';
 import { error, type Diagnostic } from './diagnostics.js';
 import { dependenciesOf } from './graph.js';
 import type { ConceptId } from './ids.js';
+import { interfacePath, relativeImport } from './layout.js';
 import type { Project } from './load.js';
+
+export { interfacePath, relativeImport } from './layout.js';
 
 export interface ExportInfo {
   names: readonly string[];
@@ -116,17 +118,6 @@ export function collectExports(project: Project): Map<ConceptId, ExportInfo> {
     }
   }
   return result;
-}
-
-export function interfacePath(id: ConceptId): string {
-  return `${id.split('.').join('/')}.d.ts`;
-}
-
-export function relativeImport(from: ConceptId, to: ConceptId): string {
-  const rel = path.posix
-    .relative(path.posix.dirname(interfacePath(from)), interfacePath(to))
-    .replace(/\.d\.ts$/, '.js');
-  return rel.startsWith('.') ? rel : `./${rel}`;
 }
 
 export interface EmittedInterface {
