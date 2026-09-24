@@ -1,10 +1,13 @@
 import path from 'node:path';
 import { Command, CommanderError } from 'commander';
 import { AnthropicGenerator } from './anthropic.js';
+import { approve, pendingApprovals, type PendingApproval } from './approve.js';
 import { runBuild, type BuildResult } from './build.js';
 import { runCheck } from './check.js';
-import { formatDiagnostic, type Diagnostic } from './diagnostics.js';
+import { formatDiagnostic, hasErrors, type Diagnostic } from './diagnostics.js';
 import type { Generator } from './llm.js';
+import { readManifest, writeManifest } from './manifest.js';
+import { runVerify } from './verify.js';
 import { VERSION } from './version.js';
 
 export interface Io {
@@ -83,6 +86,46 @@ async function buildCommand(root: string, io: Io, services: Services, options: B
   return result.ok ? 0 : 1;
 }
 
+async function approveCommand(root: string, io: Io, options: { only: string | undefined; yes: boolean }): Promise<number> {
+  const { manifest, diagnostics } = await readManifest(root);
+  printDiagnostics(io, diagnostics);
+  if (hasErrors(diagnostics)) {
+    return 1;
+  }
+  const pending = await pendingApprovals(root, manifest, options.only);
+  if (pending.length === 0) {
+    io.stdout('nothing to approve\n');
+    return 0;
+  }
+  const chosen: PendingApproval[] = [];
+  for (const item of pending) {
+    io.stdout(`\n=== ${item.file} (${item.id}) ===\n${item.source}\n`);
+    if (item.edited) {
+      io.stdout('this file was edited after generation; regenerate it with ccc tests instead\n');
+      continue;
+    }
+    if (options.yes || (io.confirm !== undefined && (await io.confirm(`approve tests for ${item.id}?`)))) {
+      chosen.push(item);
+    }
+  }
+  if (!options.yes && io.confirm === undefined) {
+    io.stdout('re-run with --yes to approve\n');
+    return 1;
+  }
+  approve(manifest, chosen);
+  await writeManifest(root, manifest);
+  io.stdout(`approved ${chosen.length} of ${pending.length}\n`);
+  return chosen.length === pending.length ? 0 : 1;
+}
+
+async function verifyCommand(root: string, io: Io): Promise<number> {
+  const { diagnostics } = await runVerify(root);
+  printDiagnostics(io, diagnostics);
+  const errors = diagnostics.filter((d) => d.severity === 'error').length;
+  io.stdout(errors === 0 ? '✓ verified: generated code is current, approved, and passing\n' : `verify failed: ${errors} problem(s)\n`);
+  return errors === 0 ? 0 : 1;
+}
+
 export async function main(argv: readonly string[], io: Io, services: Services = defaultServices): Promise<number> {
   let exitCode = 0;
   const rootOf = (dir: string): string => path.resolve(io.cwd, dir);
@@ -112,6 +155,21 @@ export async function main(argv: readonly string[], io: Io, services: Services =
     .option('-C, --dir <path>', 'project root', '.')
     .action(async (concept: string | undefined, options: { dir: string }) => {
       exitCode = await buildCommand(rootOf(options.dir), io, services, { only: concept, dryRun: false, testsOnly: true });
+    });
+  program
+    .command('approve [concept]')
+    .description('review and approve generated test files')
+    .option('-C, --dir <path>', 'project root', '.')
+    .option('-y, --yes', 'approve without asking', false)
+    .action(async (concept: string | undefined, options: { dir: string; yes: boolean }) => {
+      exitCode = await approveCommand(rootOf(options.dir), io, { only: concept, yes: options.yes });
+    });
+  program
+    .command('verify')
+    .description('CI gate: generated code is current, approved, and passing (no LLM calls)')
+    .option('-C, --dir <path>', 'project root', '.')
+    .action(async (options: { dir: string }) => {
+      exitCode = await verifyCommand(rootOf(options.dir), io);
     });
   try {
     await program.parseAsync([...argv], { from: 'user' });
