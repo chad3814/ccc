@@ -4,6 +4,7 @@ import { dependenciesOf } from './graph.js';
 import type { ConceptId } from './ids.js';
 import { interfacePath, relativeImport } from './layout.js';
 import type { Project } from './load.js';
+import { syncInterface } from './synciface.js';
 
 export { interfacePath, relativeImport } from './layout.js';
 
@@ -138,8 +139,22 @@ export function emitInterfaces(project: Project, exportsByConcept: ReadonlyMap<C
   const diagnostics: Diagnostic[] = [];
   for (const concept of project.concepts.values()) {
     const fm = concept.frontmatter;
+    if (fm.kind === 'sync') {
+      const synthesized = syncInterface(concept, exportsByConcept);
+      diagnostics.push(...synthesized.diagnostics);
+      if (synthesized.source !== null) {
+        files.push({
+          id: concept.id,
+          conceptFile: concept.file,
+          path: interfacePath(concept.id),
+          content: synthesized.source,
+          headerLines: 0,
+        });
+      }
+      continue;
+    }
     const own = exportsByConcept.get(concept.id);
-    if (fm.kind === 'sync' || own === undefined) {
+    if (own === undefined) {
       continue;
     }
     const ownNames = new Set(own.names);

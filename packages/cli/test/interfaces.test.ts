@@ -76,13 +76,18 @@ describe('emitInterfaces', () => {
     expect(game?.content).toContain("import { Hand } from './game/hand.js';");
   });
 
-  it('skips syncs and dependencies with no exports', () => {
+  it('emits synthesized interfaces for syncs', () => {
     const project = projectFrom({
       'card.md': CARD,
       'deal.md': concept('kind: sync\nwhen: card#card\nthen: [card#card]'),
     });
-    const { files } = emitInterfaces(project, collectExports(project));
-    expect(files.map((f) => f.id)).toEqual(['card']);
+    const { files, diagnostics } = emitInterfaces(project, collectExports(project));
+    expect(diagnostics).toEqual([]);
+    expect(files.map((f) => f.id)).toEqual(['card', 'deal']);
+    const deal = files.find((f) => f.id === 'deal');
+    expect(deal?.path).toBe('deal.d.ts');
+    expect(deal?.headerLines).toBe(0);
+    expect(deal?.content).toContain('export function handle(event: SyncEvent, targets: SyncTargets): Promise<void>;');
   });
 
   it('reports collisions only among referenced dependency exports', () => {
