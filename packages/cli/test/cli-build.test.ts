@@ -66,7 +66,7 @@ describe('ccc build / tests', () => {
     expect(cap.out()).not.toContain('impl ');
   });
 
-  it('exits 1 for an unknown concept and 2 for unexpected errors', async () => {
+  it('exits 1 for an unknown concept or a generator error, and 2 for unexpected errors', async () => {
     const root = await createPipelineProject();
     const unknown = capture(root);
     expect(await main(['build', 'nope'], unknown.io, fakeServices())).toBe(1);
@@ -78,8 +78,16 @@ describe('ccc build / tests', () => {
         },
       }),
     };
+    const failing = capture(root);
+    expect(await main(['tests', 'card'], failing.io, fakeServices(exploding))).toBe(1);
+    expect(failing.out()).toContain('generator error: network down');
     const boom = capture(root);
-    expect(await main(['build'], boom.io, fakeServices(exploding))).toBe(2);
-    expect(boom.err()).toBe('error: network down\n');
+    const broken = {
+      generator: (): Generator => {
+        throw new Error('no generator');
+      },
+    };
+    expect(await main(['build'], boom.io, broken)).toBe(2);
+    expect(boom.err()).toBe('error: no generator\n');
   });
 });

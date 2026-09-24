@@ -1,6 +1,7 @@
 import { dependenciesOf } from './graph.js';
 import { normalizeConcept, sha256, stableStringify } from './hash.js';
 import type { ConceptId } from './ids.js';
+import { transitiveDependencies } from './imports.js';
 import type { ExportInfo } from './interfaces.js';
 import type { Project } from './load.js';
 import type { Concept } from './parse.js';
@@ -15,9 +16,10 @@ export function interfaceTextOf(concept: Concept, exportsByConcept: ExportsByCon
 }
 
 // Dependencies contribute their interfaces only, never their implementations
-// or prose (spec §3.2: separate compilation).
-function dependencyInterfaces(concept: Concept, project: Project, exportsByConcept: ExportsByConcept): [string, string][] {
-  return dependenciesOf(concept, project).flatMap((id): [string, string][] => {
+// or prose (spec §3.2: separate compilation). Tests see every transitive
+// dependency (they may import any of them); implementations see direct ones.
+function dependencyInterfaces(ids: readonly ConceptId[], project: Project, exportsByConcept: ExportsByConcept): [string, string][] {
+  return ids.flatMap((id): [string, string][] => {
     const dep = project.concepts.get(id);
     return dep === undefined ? [] : [[id, interfaceTextOf(dep, exportsByConcept)]];
   });
@@ -37,7 +39,7 @@ export async function testKey(
       interface: interfaceTextOf(concept, exportsByConcept),
       intent: concept.sections.get('Intent')?.body ?? '',
       examples: concept.examples,
-      dependencies: dependencyInterfaces(concept, project, exportsByConcept),
+      dependencies: dependencyInterfaces(transitiveDependencies(concept, project), project, exportsByConcept),
       prompt: versions.testPrompt,
       model: versions.testModel,
       runtime: versions.runtime,
@@ -56,7 +58,7 @@ export async function implKey(
     stableStringify({
       artifact: 'impl',
       concept: normalizeConcept(concept),
-      dependencies: dependencyInterfaces(concept, project, exportsByConcept),
+      dependencies: dependencyInterfaces(dependenciesOf(concept, project), project, exportsByConcept),
       tests: testFileHash,
       prompt: concept.frontmatter.kind === 'sync' ? versions.syncPrompt : versions.implPrompt,
       model: versions.implModel,

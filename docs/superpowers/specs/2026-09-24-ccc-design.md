@@ -215,7 +215,7 @@ A concept's key includes its dependencies' **interfaces**, never their implement
 
 | Artifact | Key = SHA-256 of |
 |---|---|
-| Tests | own interface + Intent + Examples + dependency interfaces + test prompt version + test model + runtime version |
+| Tests | own interface + Intent + Examples + interfaces of all transitive dependencies + test prompt version + test model + runtime version |
 | Implementation | normalized concept file + dependency interfaces + current test file hash + impl prompt version + impl model + runtime version |
 | Sync handler | normalized sync file + `when`/`then` interfaces + current test file hash + prompt version + model + runtime version |
 
@@ -297,11 +297,15 @@ Node built-ins are not on any list, so no kind can import them. oxlint enforces 
 
 ### 4.5 Repair loop (per implementation)
 
-1. Generate into a temp directory overlaying `.ccc/gen`.
-2. Run `tsc --noEmit` (whole project with the candidate in place), then oxlint on the candidate, then Vitest on the concept's tests.
-3. On failure, send trimmed diagnostics (first 50 errors, file/line/message) back in the same conversation; retry up to `maxAttempts`.
-4. On success, write atomically to `.ccc/gen`; update the manifest.
-5. On exhaustion, the concept fails. **Failing output is never written**; the last good version stays. Dependents are skipped for this build; unrelated concepts continue. The report names the concept and the failing `[ex N]` examples.
+1. Reject the candidate before writing it if it imports anything not allowed (4.3) or exports a name its interface doesn't declare.
+2. Write it in place at `.ccc/gen/<id>.ts`. Run `tsc` on the module, its conformance file, and its tests (only errors in those files count); run oxlint on the module; run the concept's tests. Skipped tests count as failures.
+3. On failure, put the previous module back immediately, then send the trimmed problems (first 50) back in the same conversation and retry, up to `maxAttempts`.
+4. On success, keep the file; the manifest records its hash.
+5. On exhaustion, or on a generator error (the SDK has already retried transient failures), the concept fails with the last problems. The last good version stays; dependents are skipped for this build; unrelated concepts continue.
+
+The manifest records hashes only for files the build itself wrote, so a hand edit anywhere else stays visible to the next build and to `verify`. Entries for deleted concepts are dropped.
+
+Conformance compares the module with its contract in both directions for values (assignable, no extra exports) and for exported interfaces and non-generic type aliases (identical).
 
 ### 4.6 Handwritten concepts
 

@@ -1,7 +1,7 @@
 import { runCheck } from './check.js';
 import { loadConfig } from './config.js';
 import { error, hasErrors, warning, type Diagnostic } from './diagnostics.js';
-import { emitDeterministicFiles } from './emit.js';
+import { deterministicWrites, emitDeterministicFiles, expectedFiles } from './emit.js';
 import { fileHash, readFileOrNull, writeFileAtomic } from './fsutil.js';
 import type { GenerationOutcome } from './generation.js';
 import { dependenciesOf } from './graph.js';
@@ -158,6 +158,37 @@ function firstLines(text: string): string {
   return text.split('\n').slice(0, 6).join('\n');
 }
 
+// Record fresh hashes only for files this build wrote. Every other file keeps
+// its previous hash (a mismatch stays visible to build and verify), an
+// unrecorded file stays unrecorded, and entries for deleted concepts go.
+async function finalizeManifest(root: string, project: Project, manifest: Manifest, touched: ReadonlySet<string>): Promise<void> {
+  const onDisk = await listCccFiles(root);
+  const fresh = await hashFiles(
+    root,
+    onDisk.filter((file) => touched.has(file)),
+  );
+  const expected = expectedFiles(project);
+  const files: Record<string, string> = {};
+  for (const file of onDisk) {
+    const recorded = touched.has(file) ? fresh[file] : manifest.files[file];
+    if (recorded !== undefined) {
+      files[file] = recorded;
+    }
+  }
+  for (const [file, hash] of Object.entries(manifest.files)) {
+    if (files[file] === undefined && expected.has(file) && !onDisk.includes(file)) {
+      files[file] = hash;
+    }
+  }
+  manifest.files = files;
+  for (const id of Object.keys(manifest.concepts)) {
+    if (!project.concepts.has(id)) {
+      delete manifest.concepts[id];
+    }
+  }
+  await writeManifest(root, manifest);
+}
+
 export async function runBuild(options: BuildOptions): Promise<BuildResult> {
   const { root } = options;
   const log = options.log ?? ((): void => undefined);
@@ -201,103 +232,110 @@ export async function runBuild(options: BuildOptions): Promise<BuildResult> {
   const ctx: GenerateContext = { root, project, exportsByConcept, generator: options.generator, config, now };
   const failed = new Set<ConceptId>();
   const skipped = new Set<ConceptId>();
+  // Files this build wrote (or emitted deterministically); only these get
+  // fresh hashes in the manifest, so hand edits elsewhere stay detectable.
+  const touched = new Set(deterministicWrites(project, exportsByConcept).writes.map(([file]) => file));
 
-  // Stage 3: tests, all concepts in parallel (tests depend only on interfaces).
-  await mapPool(
-    [...states.values()].filter((state) => state.item.tests),
-    config.concurrency,
-    async (state) => {
-      const concept = project.concepts.get(state.item.id);
-      if (concept === undefined) {
-        return;
-      }
-      const entry = entryFor(manifest, concept.id);
-      const outcome = await generateTests(ctx, concept);
-      entry.history.push(outcome.record);
-      if (outcome.source === null) {
-        failed.add(concept.id);
-        result.diagnostics.push(generationFailure(concept, 'tests', outcome));
-        log(`tests  ${concept.id}  FAILED`);
-        return;
-      }
-      await writeFileAtomic(root, testPath(concept.id), outcome.source);
-      entry.testKey = state.testKey;
-      entry.testFileHash = await sha256(outcome.source);
-      entry.approvedTestHash = null;
-      result.generated.tests.push(concept.id);
-      log(`tests  ${concept.id}  generated in ${outcome.record.attempts} attempt(s), pending approval`);
-    },
-  );
+  try {
+    // Stage 3: tests, all concepts in parallel (tests depend only on interfaces).
+    await mapPool(
+      [...states.values()].filter((state) => state.item.tests),
+      config.concurrency,
+      async (state) => {
+        const concept = project.concepts.get(state.item.id);
+        if (concept === undefined) {
+          return;
+        }
+        const entry = entryFor(manifest, concept.id);
+        const outcome = await generateTests(ctx, concept);
+        entry.history.push(outcome.record);
+        if (outcome.source === null) {
+          failed.add(concept.id);
+          result.diagnostics.push(generationFailure(concept, 'tests', outcome));
+          log(`tests  ${concept.id}  FAILED`);
+          return;
+        }
+        await writeFileAtomic(root, testPath(concept.id), outcome.source);
+        touched.add(testPath(concept.id));
+        entry.testKey = state.testKey;
+        entry.testFileHash = await sha256(outcome.source);
+        entry.approvedTestHash = null;
+        result.generated.tests.push(concept.id);
+        log(`tests  ${concept.id}  generated in ${outcome.record.attempts} attempt(s), pending approval`);
+      },
+    );
 
-  // Stage 4: implementations, level by level so dependencies exist first.
-  if (options.testsOnly !== true) {
-    for (const level of topologicalLevels(project)) {
-      await mapPool(
-        level.filter((id) => scope.has(id)),
-        config.concurrency,
-        async (id) => {
-          const concept = project.concepts.get(id);
-          if (concept === undefined || failed.has(id)) {
-            return;
-          }
-          const blocker = dependenciesOf(concept, project).find((dep) => failed.has(dep) || skipped.has(dep));
-          if (blocker !== undefined) {
-            skipped.add(id);
-            result.diagnostics.push(warning(concept.file, `skipped: dependency '${blocker}' did not build`));
-            return;
-          }
-          const testSource = await readFileOrNull(root, testPath(id));
-          if (testSource === null) {
-            failed.add(id);
-            result.diagnostics.push(error(concept.file, 'no tests exist for this concept; run ccc tests'));
-            return;
-          }
-          if (isHandwritten(concept.frontmatter)) {
-            const problems = await checkModuleOnDisk(ctx, concept);
-            if (problems.length > 0) {
-              failed.add(id);
-              result.diagnostics.push(error(concept.file, `handwritten module fails its checks:\n${bullets(problems)}`));
+    // Stage 4: implementations, level by level so dependencies exist first.
+    if (options.testsOnly !== true) {
+      for (const level of topologicalLevels(project)) {
+        await mapPool(
+          level.filter((id) => scope.has(id)),
+          config.concurrency,
+          async (id) => {
+            const concept = project.concepts.get(id);
+            if (concept === undefined || failed.has(id)) {
+              return;
             }
-            return;
-          }
-          const key = await implKey(concept, project, exportsByConcept, versions, await sha256(testSource));
-          if (await isModuleCurrent(root, manifest, concept, key)) {
-            return;
-          }
-          const entry = entryFor(manifest, id);
-          const outcome = await generateImpl(ctx, concept, testSource, { key, commit: true });
-          entry.history.push(outcome.record);
-          if (outcome.source === null) {
-            failed.add(id);
-            result.diagnostics.push(generationFailure(concept, 'impl', outcome));
-            log(`impl   ${id}  FAILED`);
-            return;
-          }
-          entry.implKey = key;
-          result.generated.impl.push(id);
-          log(`impl   ${id}  generated in ${outcome.record.attempts} attempt(s)`);
-        },
-      );
-    }
+            const blocker = dependenciesOf(concept, project).find((dep) => failed.has(dep) || skipped.has(dep));
+            if (blocker !== undefined) {
+              skipped.add(id);
+              result.diagnostics.push(warning(concept.file, `skipped: dependency '${blocker}' did not build`));
+              return;
+            }
+            const testSource = await readFileOrNull(root, testPath(id));
+            if (testSource === null) {
+              failed.add(id);
+              result.diagnostics.push(error(concept.file, 'no tests exist for this concept; run ccc tests'));
+              return;
+            }
+            if (isHandwritten(concept.frontmatter)) {
+              const problems = await checkModuleOnDisk(ctx, concept);
+              if (problems.length > 0) {
+                failed.add(id);
+                result.diagnostics.push(error(concept.file, `handwritten module fails its checks:\n${bullets(problems)}`));
+              }
+              return;
+            }
+            const key = await implKey(concept, project, exportsByConcept, versions, await sha256(testSource));
+            if (await isModuleCurrent(root, manifest, concept, key)) {
+              return;
+            }
+            const entry = entryFor(manifest, id);
+            const outcome = await generateImpl(ctx, concept, testSource, { key, commit: true });
+            entry.history.push(outcome.record);
+            if (outcome.source === null) {
+              failed.add(id);
+              result.diagnostics.push(generationFailure(concept, 'impl', outcome));
+              log(`impl   ${id}  FAILED`);
+              return;
+            }
+            entry.implKey = key;
+            touched.add(modulePath(id));
+            result.generated.impl.push(id);
+            log(`impl   ${id}  generated in ${outcome.record.attempts} attempt(s)`);
+          },
+        );
+      }
 
-    // Stage 6: the full suite, which exercises cross-concept behavior.
-    const testFiles: string[] = [];
-    for (const id of project.concepts.keys()) {
-      if ((await fileHash(root, testPath(id))) !== null) {
-        testFiles.push(testPath(id));
+      // Stage 6: the full suite, which exercises cross-concept behavior.
+      const testFiles: string[] = [];
+      for (const id of project.concepts.keys()) {
+        if ((await fileHash(root, testPath(id))) !== null) {
+          testFiles.push(testPath(id));
+        }
+      }
+      const run = await runTests(root, testFiles);
+      for (const issue of run.errors) {
+        result.diagnostics.push(error(issue.file || 'concepts/', `test file failed to run: ${firstLines(issue.message)}`));
+      }
+      for (const testCase of run.cases.filter((c) => c.status === 'failed')) {
+        result.diagnostics.push(error(testCase.file, `test failed: ${testCase.name}: ${firstLines(testCase.message)}`));
       }
     }
-    const run = await runTests(root, testFiles);
-    for (const issue of run.errors) {
-      result.diagnostics.push(error(issue.file || 'concepts/', `test file failed to run: ${firstLines(issue.message)}`));
-    }
-    for (const testCase of run.cases.filter((c) => c.status === 'failed')) {
-      result.diagnostics.push(error(testCase.file, `test failed: ${testCase.name}: ${firstLines(testCase.message)}`));
-    }
+  } finally {
+    // Written even if a stage throws, so completed work isn't redone.
+    await finalizeManifest(root, project, manifest, touched);
   }
-
-  manifest.files = await hashFiles(root, await listCccFiles(root));
-  await writeManifest(root, manifest);
   result.failed = [...failed].sort(compareIds);
   result.skipped = [...skipped].sort(compareIds);
   result.generated.tests.sort(compareIds);

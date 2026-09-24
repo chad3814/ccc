@@ -11,6 +11,7 @@ export { interfacePath, relativeImport } from './layout.js';
 export interface ExportInfo {
   names: readonly string[];
   functions: readonly string[];
+  types: readonly string[];
   classMethods: ReadonlyMap<string, readonly string[]>;
 }
 
@@ -26,6 +27,7 @@ export function exportsOf(source: string): ExportInfo {
   const file = parseInterface(source);
   const names: string[] = [];
   const functions: string[] = [];
+  const types: string[] = [];
   const classMethods = new Map<string, readonly string[]>();
   for (const statement of file.statements) {
     if (!isExported(statement)) {
@@ -42,11 +44,13 @@ export function exportsOf(source: string): ExportInfo {
     } else if (ts.isFunctionDeclaration(statement) && statement.name !== undefined) {
       names.push(statement.name.text);
       functions.push(statement.name.text);
-    } else if (
-      ts.isInterfaceDeclaration(statement) ||
-      ts.isTypeAliasDeclaration(statement) ||
-      ts.isEnumDeclaration(statement)
-    ) {
+    } else if (ts.isInterfaceDeclaration(statement) || ts.isTypeAliasDeclaration(statement)) {
+      names.push(statement.name.text);
+      // Generic types can't be compared without type arguments.
+      if (statement.typeParameters === undefined) {
+        types.push(statement.name.text);
+      }
+    } else if (ts.isEnumDeclaration(statement)) {
       names.push(statement.name.text);
     } else if (ts.isVariableStatement(statement)) {
       for (const declaration of statement.declarationList.declarations) {
@@ -56,7 +60,7 @@ export function exportsOf(source: string): ExportInfo {
       }
     }
   }
-  return { names: [...new Set(names)], functions: [...new Set(functions)], classMethods };
+  return { names: [...new Set(names)], functions: [...new Set(functions)], types: [...new Set(types)], classMethods };
 }
 
 function parseInterface(source: string): ts.SourceFile {

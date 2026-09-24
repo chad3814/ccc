@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { exampleTags, generateTests, tagProblems } from '../src/testgen.js';
+import { exampleTags, generateTests, modifierProblems, tagProblems } from '../src/testgen.js';
 import { FakeGenerator } from './fake-generator.js';
 import { CANNED_TESTS, createPipelineProject, pipelineContext, pipelineResponder } from './pipeline-fixture.js';
 
@@ -13,6 +13,15 @@ describe('exampleTags / tagProblems', () => {
       'write exactly one test per example, tagged [ex 1] through [ex 2]; found [ex 1], [ex 3]',
     ]);
     expect(tagProblems([], 1)).toEqual(['write exactly one test per example, tagged [ex 1] through [ex 1]; found no tags']);
+  });
+});
+
+describe('modifierProblems', () => {
+  it('rejects skipped, todo, focused, and expected-failure tests', () => {
+    expect(modifierProblems("it('[ex 1] a', f);")).toEqual([]);
+    expect(modifierProblems("it.skip('[ex 1] a', f);\ntest.only('[ex 2] b', f);\ndescribe.skip('x', f);")).toEqual([
+      'tests must not use .skip, .only (every example must run)',
+    ]);
   });
 });
 

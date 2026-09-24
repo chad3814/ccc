@@ -86,4 +86,17 @@ describe('cache keys', () => {
     if (sync === undefined) throw new Error('fixture');
     expect(interfaceTextOf(sync, collectExports(project))).toContain('export interface SyncTargets');
   });
+
+  it('key tests on transitive dependencies and implementations on direct ones', async () => {
+    const files = {
+      ...BASE,
+      'counter.md': concept('kind: entity\ninterface: |\n  export class Counter {\n    increment(): void;\n  }'),
+      'count-adds.md': concept('kind: sync\nwhen: hand#add\nthen: [counter#increment]'),
+    };
+    const before = await keysFor(files, 'count-adds');
+    const after = await keysFor({ ...files, 'card.md': CARD('\n  export type Suit = string;') }, 'count-adds');
+    expect(after.test).not.toBe(before.test);
+    expect(after.impl).toBe(before.impl);
+  });
 });
+

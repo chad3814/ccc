@@ -3,10 +3,10 @@ import { loadConfig } from './config.js';
 import { error, hasErrors, sortDiagnostics, type Diagnostic } from './diagnostics.js';
 import { collectExports } from './interfaces.js';
 import { implKey, testKey } from './keys.js';
-import { testPath } from './layout.js';
+import { CONFORMANCE_DIR, testPath } from './layout.js';
 import { hashFiles, listCccFiles, readManifest } from './manifest.js';
 import { isHandwritten } from './schema.js';
-import { runTests } from './toolchain.js';
+import { lintFiles, runTests, typecheckFiles } from './toolchain.js';
 import { loadVersions } from './versions.js';
 
 // The CI gate from spec §6. Never calls the LLM.
@@ -62,10 +62,29 @@ export async function runVerify(root: string): Promise<{ diagnostics: Diagnostic
     }
   }
 
+  // Type-check every module through its conformance file and every test, and
+  // lint handwritten sources (generated modules were linted when generated).
+  const typeTargets = onDisk.filter((file) => file.startsWith(`${CONFORMANCE_DIR}/`) || file.endsWith('.test.ts'));
+  for (const issue of await typecheckFiles(root, typeTargets)) {
+    diagnostics.push(
+      error(issue.file || 'concepts/', `type error: ${issue.line === null ? '' : `line ${issue.line}: `}${issue.message}`),
+    );
+  }
+  const handwrittenSources = [...project.concepts.values()].flatMap((concept) => {
+    const fm = concept.frontmatter;
+    return fm.kind !== 'sync' && fm.implementation === 'handwritten' && fm.source !== undefined ? [fm.source] : [];
+  });
+  for (const issue of await lintFiles(root, handwrittenSources)) {
+    diagnostics.push(error(issue.file, `lint: ${issue.message}`, issue.line === null ? {} : { line: issue.line }));
+  }
+
   const testFiles = onDisk.filter((file) => file.endsWith('.test.ts'));
   const run = await runTests(root, testFiles);
   for (const issue of run.errors) {
     diagnostics.push(error(issue.file || 'concepts/', `test file failed to run: ${issue.message.split('\n')[0] ?? ''}`));
+  }
+  for (const testCase of run.cases.filter((c) => c.status === 'skipped')) {
+    diagnostics.push(error(testCase.file, `test skipped: ${testCase.name}`));
   }
   for (const testCase of run.cases.filter((c) => c.status === 'failed')) {
     diagnostics.push(error(testCase.file, `test failed: ${testCase.name}: ${testCase.message.split('\n')[0] ?? ''}`));

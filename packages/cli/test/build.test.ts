@@ -4,7 +4,7 @@ import path from 'node:path';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { dependencyClosure, runBuild, topologicalLevels } from '../src/build.js';
 import { fileHash, readFileOrNull, writeFileAtomic } from '../src/fsutil.js';
-import { modulePath } from '../src/layout.js';
+import { modulePath, testPath } from '../src/layout.js';
 import { loadProject } from '../src/load.js';
 import { readManifest } from '../src/manifest.js';
 import { FakeGenerator } from './fake-generator.js';
@@ -75,9 +75,9 @@ describe('runBuild', () => {
     const root = await copyProject(built);
     const card = PIPELINE_FILES['concepts/card.md'] ?? '';
     await writeFileAtomic(root, 'concepts/card.md', card.replace('  export function card(', '  export type Rank = string;\n  export function card('));
-    const { result } = await build(root);
+    const { result } = await build(root, { 'impl:card': () => `export type Rank = string;\n${CANNED_IMPL.card ?? ''}` });
     expect(result.ok).toBe(true);
-    expect(result.generated.tests.sort()).toEqual(['card', 'hand']);
+    expect(result.generated.tests.sort()).toEqual(['card', 'count-adds', 'hand']);
     expect(result.generated.impl.sort()).toEqual(['card', 'hand']);
   });
 
@@ -89,6 +89,51 @@ describe('runBuild', () => {
     expect(result.ok).toBe(true);
     expect(result.generated.impl.sort()).toEqual(['card', 'counter']);
   });
+
+  it('never records a hand edit to a file this build did not write', async () => {
+    const root = await copyProject(built);
+    const edited = `${(await readFileOrNull(root, modulePath('counter'))) ?? ''}export const evil = 1;\n`;
+    await writeFileAtomic(root, modulePath('counter'), edited);
+    await writeFileAtomic(root, testPath('count-adds'), "it('[ex 1] x', () => {});\n");
+    await build(root, {}, { only: 'hand' });
+    await build(root, {}, { only: 'hand', testsOnly: true });
+    const { manifest } = await readManifest(root);
+    expect(manifest.files[modulePath('counter')]).not.toBe(await fileHash(root, modulePath('counter')));
+    expect(manifest.files[testPath('count-adds')]).not.toBe(await fileHash(root, testPath('count-adds')));
+  });
+
+  it('does not trust a module whose regeneration failed', async () => {
+    const root = await copyProject(built);
+    await writeFileAtomic(root, modulePath('counter'), `${CANNED_IMPL.counter ?? ''}export const evil = 1;\n`);
+    const failing = await build(root, { 'impl:counter': () => 'export const broken: number = "x";\n' });
+    expect(failing.result.failed).toEqual(['counter']);
+    const next = await build(root);
+    expect(next.result.generated.impl).toContain('counter');
+  }, 180_000);
+
+  it('drops manifest entries for deleted concepts', async () => {
+    const root = await copyProject(built);
+    await rm(path.join(root, 'concepts/count-adds.md'));
+    const { result } = await build(root);
+    expect(result.ok).toBe(true);
+    const { manifest } = await readManifest(root);
+    expect(Object.keys(manifest.concepts).sort()).toEqual(['card', 'counter', 'hand']);
+    expect(Object.keys(manifest.files).some((file) => file.includes('count-adds'))).toBe(false);
+  });
+
+  it('turns generator errors into failed concepts and keeps the rest', async () => {
+    const root = await createPipelineProject();
+    const { result } = await build(root, {
+      'impl:hand': () => {
+        throw new Error('529 overloaded');
+      },
+    });
+    expect(result.failed).toEqual(['hand']);
+    expect(result.skipped).toEqual(['count-adds']);
+    expect(result.diagnostics.map((d) => d.message).join('\n')).toContain('generator error: 529 overloaded');
+    const { manifest } = await readManifest(root);
+    expect(manifest.concepts.card?.implKey).toMatch(/^[0-9a-f]{64}$/);
+  }, 180_000);
 
   it('plans without writing on a dry run', async () => {
     const root = await createPipelineProject();

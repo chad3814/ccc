@@ -27,6 +27,14 @@ export function exampleTags(source: string): number[] {
   return [...source.matchAll(TAG)].map((match) => Number(match[2])).sort((a, b) => a - b);
 }
 
+const MODIFIER = /\b(?:it|test|describe)\.(skip|todo|only|fails)\b/g;
+
+// Every example must actually run: a skipped test verifies nothing.
+export function modifierProblems(source: string): string[] {
+  const found = [...new Set([...source.matchAll(MODIFIER)].map((match) => match[1] ?? ''))];
+  return found.length === 0 ? [] : [`tests must not use .${found.join(', .')} (every example must run)`];
+}
+
 export function tagProblems(tags: readonly number[], count: number): string[] {
   if (tags.length === count && tags.every((tag, index) => tag === index + 1)) {
     return [];
@@ -64,6 +72,7 @@ async function typecheckAgainstInterfaces(ctx: GenerateContext, concept: Concept
 export async function checkTestSource(ctx: GenerateContext, concept: Concept, source: string): Promise<string[]> {
   const problems = [
     ...tagProblems(exampleTags(source), concept.examples.length),
+    ...modifierProblems(source),
     ...checkImports(source, testImportsFor(concept, ctx.project), TEST_PACKAGES),
   ];
   return problems.length > 0 ? problems : typecheckAgainstInterfaces(ctx, concept, source);

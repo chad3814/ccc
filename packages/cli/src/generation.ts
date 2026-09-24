@@ -52,7 +52,19 @@ export async function generationLoop(options: LoopOptions): Promise<GenerationOu
   let message = options.firstMessage;
   let problems: string[] = [];
   for (let attempt = 1; attempt <= options.maxAttempts; attempt++) {
-    const turn = await session.send(message);
+    let turn;
+    try {
+      turn = await session.send(message);
+    } catch (err) {
+      // The SDK already retried transient failures; stop this artifact and
+      // let the build carry on with the rest.
+      const reason = err instanceof Error ? err.message : String(err);
+      return {
+        source: null,
+        problems: [`generator error: ${reason}`],
+        record: generationRecord(options.artifact, started, options.now(), model, attempt, usage, 'failed'),
+      };
+    }
     usage.inputTokens += turn.usage.inputTokens;
     usage.outputTokens += turn.usage.outputTokens;
     model = turn.model;

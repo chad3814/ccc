@@ -2,6 +2,8 @@ import { implRequest } from './context.js';
 import { readFileOrNull, removeFile, writeFileAtomic } from './fsutil.js';
 import { generationLoop, type GenerationOutcome } from './generation.js';
 import { PACKAGES_BY_KIND, checkImports, moduleImportsFor } from './imports.js';
+import { exportsOf } from './interfaces.js';
+import { interfaceTextOf } from './keys.js';
 import { conformancePath, generatedHeader, modulePath, testPath } from './layout.js';
 import type { Concept } from './parse.js';
 import type { GenerateContext } from './testgen.js';
@@ -42,6 +44,7 @@ export async function checkModuleOnDisk(ctx: { root: string }, concept: Concept)
     ...run.cases
       .filter((testCase) => testCase.status === 'failed')
       .map((testCase) => `test failed: ${testCase.name}: ${testCase.message.split('\n').slice(0, 6).join('\n')}`),
+    ...run.cases.filter((testCase) => testCase.status === 'skipped').map((testCase) => `test skipped: ${testCase.name}`),
   ];
   if (problems.length === 0 && run.cases.length === 0) {
     problems.push(`no tests ran for ${test}`);
@@ -78,12 +81,24 @@ export async function generateImpl(
       artifact: 'impl',
       now: ctx.now,
       check: async (code) => {
-        const importIssues = checkImports(code, moduleImportsFor(concept, ctx.project), PACKAGES_BY_KIND[concept.frontmatter.kind]);
-        if (importIssues.length > 0) {
-          return importIssues;
+        const declared = new Set(exportsOf(interfaceTextOf(concept, ctx.exportsByConcept)).names);
+        const shapeIssues = [
+          ...checkImports(code, moduleImportsFor(concept, ctx.project), PACKAGES_BY_KIND[concept.frontmatter.kind]),
+          ...exportsOf(code)
+            .names.filter((name) => !declared.has(name))
+            .map((name) => `exports ${name}, which is not in the interface`),
+        ];
+        if (shapeIssues.length > 0) {
+          return shapeIssues;
         }
         await writeFileAtomic(ctx.root, target, withHeader(code));
-        return checkModuleOnDisk(ctx, concept);
+        const problems = await checkModuleOnDisk(ctx, concept);
+        if (problems.length > 0) {
+          // Never leave a failing candidate in .ccc/gen while the model works
+          // on the next attempt.
+          await restore(ctx.root, target, original);
+        }
+        return problems;
       },
     });
     if (outcome.source === null) {

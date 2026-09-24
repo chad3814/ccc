@@ -44,4 +44,14 @@ describe('generationLoop', () => {
     expect(outcome.record.attempts).toBe(3);
     expect(outcome.problems).toEqual(['you did not call write_module; call write_module with the complete file']);
   });
+
+  it('stops at a generator error and reports it as the problem', async () => {
+    const fake = new FakeGenerator(() => {
+      throw new Error('socket hang up');
+    });
+    const outcome = await generationLoop(options(fake, async () => []));
+    expect(outcome.source).toBeNull();
+    expect(outcome.record).toMatchObject({ attempts: 1, outcome: 'failed' });
+    expect(outcome.problems).toEqual(['generator error: socket hang up']);
+  });
 });

@@ -10,6 +10,7 @@ import { readManifest, writeManifest } from '../src/manifest.js';
 import { runVerify } from '../src/verify.js';
 import { FakeGenerator } from './fake-generator.js';
 import { PIPELINE_FILES, createPipelineProject, pipelineResponder } from './pipeline-fixture.js';
+import { concept, writeProject } from './helpers.js';
 
 let built = '';
 
@@ -118,4 +119,28 @@ describe('runVerify', () => {
     expect(found).toContain('.ccc/gen/card.ts: modified since ccc build generated it');
     expect(found.some((line) => line.startsWith('.ccc/gen/card.test.ts: test failed: [ex 1]'))).toBe(true);
   });
+});
+
+describe('handwritten sources', () => {
+  it('are type-checked and linted by verify', async () => {
+    const root = await writeProject({
+      'package.json': '{"type":"module"}\n',
+      'concepts/label.md': concept(
+        'kind: value\nimplementation: handwritten\nsource: handwritten/label.ts\ninterface: |\n  export function label(name: string): string;',
+        '## Intent\nLabels.\n\n## Examples\n- label("a") → "[a]"\n',
+      ),
+      'handwritten/label.ts': 'export function label(name: string): string {\n  return `[${name}]`;\n}\n',
+    });
+    const test = "import { label } from './label.js';\n\ndescribe('label', () => {\n  it('[ex 1] wraps the name', () => {\n    expect(label('a')).toBe('[a]');\n  });\n});\n";
+    const result = await runBuild({ root, generator: new FakeGenerator(() => test) });
+    expect(result.diagnostics.filter((d) => d.severity === 'error')).toEqual([]);
+    await approveEverything(root);
+    expect(await messages(root)).toEqual([]);
+
+    await writeFileAtomic(root, 'handwritten/label.ts', 'export function label(name: any): string {\n  return `[${name}]`;\n}\n');
+    expect((await messages(root)).some((line) => /^handwritten\/label\.ts: lint: .*no-explicit-any/.test(line))).toBe(true);
+
+    await writeFileAtomic(root, 'handwritten/label.ts', 'export function label(name: string, extra: number): string {\n  return `[${name}${extra}]`;\n}\n');
+    expect((await messages(root)).some((line) => line.startsWith('.ccc/conformance/label.ts: type error: '))).toBe(true);
+  }, 180_000);
 });

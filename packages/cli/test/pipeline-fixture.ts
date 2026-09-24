@@ -232,7 +232,7 @@ export function artifactOf(request: FakeRequest): 'tests' | 'impl' {
   return request.system.startsWith('You are the test writer') ? 'tests' : 'impl';
 }
 
-export type Overrides = Readonly<Record<string, (attempt: number) => string | null>>;
+export type Overrides = Readonly<Record<string, (attempt: number) => string | null | Promise<string | null>>>;
 
 // Answers with the canned source for the concept unless an override for
 // `<artifact>:<id>` exists; overrides get the attempt number (1-based).

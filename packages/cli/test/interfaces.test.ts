@@ -36,6 +36,13 @@ function hidden(): void;
   });
 });
 
+describe('exportsOf types', () => {
+  it('lists non-generic interfaces and type aliases as types', () => {
+    const info = exportsOf('export interface Card { rank: string }\nexport type Suit = string;\nexport type Box<T> = T[];\nexport class Hand {}\nexport function deal(): void;');
+    expect(info.types).toEqual(['Card', 'Suit']);
+  });
+});
+
 describe('paths', () => {
   it('maps ids to d.ts paths and relative imports', () => {
     expect(interfacePath('game.player.hand')).toBe('game/player/hand.d.ts');

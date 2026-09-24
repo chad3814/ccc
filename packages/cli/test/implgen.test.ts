@@ -40,6 +40,26 @@ describe('generateImpl', () => {
     expect(fake.requests[1]?.messages[1]).toContain('test failed: [ex 2] rejects a duplicate card');
   });
 
+  it('puts the previous module back while waiting for the next attempt', async () => {
+    const good = CANNED_IMPL.hand ?? '';
+    const seen: (string | null)[] = [];
+    const holder = { root: '' };
+    const { root, ctx, hand } = await ready({
+      'impl:hand': async (attempt) => {
+        if (attempt === 1) {
+          return good.replace('throw new DuplicateCard', 'return; throw new DuplicateCard');
+        }
+        seen.push(await readFileOrNull(holder.root, modulePath('hand')));
+        return good;
+      },
+    });
+    holder.root = root;
+    await writeFileAtomic(root, modulePath('hand'), '// previous good version\n');
+    const outcome = await generateImpl(ctx, hand, CANNED_TESTS.hand ?? '', { key: 'k'.repeat(16), commit: true });
+    expect(outcome.record.attempts).toBe(2);
+    expect(seen).toEqual(['// previous good version\n']);
+  });
+
   it('rejects disallowed imports without writing them', async () => {
     const good = CANNED_IMPL.hand ?? '';
     const { fake, ctx, hand } = await ready({
@@ -49,12 +69,32 @@ describe('generateImpl', () => {
     expect(fake.requests[1]?.messages[1]).toContain("package 'node:fs' is not allowed here");
   });
 
-  it('fails conformance when the module exports something extra', async () => {
+  it('rejects an extra exported value before running checks', async () => {
     const good = CANNED_IMPL.hand ?? '';
     const { ctx, hand } = await ready({ 'impl:hand': () => `${good}\nexport const extra = 1;\n` });
     const outcome = await generateImpl(ctx, hand, CANNED_TESTS.hand ?? '', { key: 'k'.repeat(16), commit: true });
     expect(outcome.source).toBeNull();
-    expect(outcome.problems.join('\n')).toContain('.ccc/conformance/hand.ts');
+    expect(outcome.problems).toEqual(['exports extra, which is not in the interface']);
+  });
+
+  it('fails conformance when an exported type differs from the interface', async () => {
+    const { ctx } = await ready({
+      'impl:card': () => (CANNED_IMPL.card ?? '').replace('  readonly suit: string;\n}', '  readonly suit: string;\n  readonly extra?: number;\n}'),
+    });
+    const card = ctx.project.concepts.get('card');
+    if (card === undefined) throw new Error('fixture');
+    const outcome = await generateImpl(ctx, card, CANNED_TESTS.card ?? '', { key: 'k'.repeat(16), commit: true });
+    expect(outcome.source).toBeNull();
+    expect(outcome.problems.join('\n')).toContain('Card differs from the interface');
+  });
+
+  it('rejects exports the interface does not declare, including types', async () => {
+    const good = CANNED_IMPL.hand ?? '';
+    const { fake, ctx, hand } = await ready({
+      'impl:hand': (attempt) => (attempt === 1 ? `${good}\nexport type Extra = string;\n` : good),
+    });
+    await generateImpl(ctx, hand, CANNED_TESTS.hand ?? '', { key: 'k'.repeat(16), commit: true });
+    expect(fake.requests[1]?.messages[1]).toContain('exports Extra, which is not in the interface');
   });
 
   it('restores the previous module after exhausting attempts', async () => {
@@ -82,5 +122,8 @@ describe('checkModuleOnDisk', () => {
     expect(await checkModuleOnDisk(ctx, card)).toEqual([]);
     await writeFileAtomic(root, modulePath('card'), (CANNED_IMPL.card ?? '').replace('return { rank, suit };', 'return { rank: suit, suit: rank };'));
     expect((await checkModuleOnDisk(ctx, card)).join('\n')).toContain('test failed: [ex 1] builds a card');
+    await writeFileAtomic(root, modulePath('card'), CANNED_IMPL.card ?? '');
+    await writeFileAtomic(root, testPath('card'), (CANNED_TESTS.card ?? '').replace("it('[ex 2]", "it.skip('[ex 2]"));
+    expect(await checkModuleOnDisk(ctx, card)).toEqual(['test skipped: [ex 2] compares cards by rank and suit']);
   });
 });

@@ -6,7 +6,7 @@ export interface FakeRequest {
   messages: readonly string[];
 }
 
-export type FakeResponder = (request: FakeRequest) => string | null;
+export type FakeResponder = (request: FakeRequest) => string | null | Promise<string | null>;
 
 // Scripted stand-in for Claude: the responder sees the whole session so far
 // and returns the code for this turn (null means "no tool call").
@@ -25,7 +25,7 @@ export class FakeGenerator implements Generator {
         messages.push(message);
         const request: FakeRequest = { model: options.model, system: options.system, messages: [...messages] };
         this.requests.push(request);
-        const code = this.#responder(request);
+        const code = await this.#responder(request);
         return {
           code,
           note: code === null ? NO_TOOL_CALL_NOTE : '',
