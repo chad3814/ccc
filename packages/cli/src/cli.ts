@@ -7,6 +7,8 @@ import { runCheck } from './check.js';
 import { formatDiagnostic, hasErrors, type Diagnostic } from './diagnostics.js';
 import type { Generator } from './llm.js';
 import { readManifest, writeManifest } from './manifest.js';
+import { runRegen } from './regen.js';
+import { computeStats, formatStats } from './stats.js';
 import { runVerify } from './verify.js';
 import { VERSION } from './version.js';
 
@@ -126,6 +128,31 @@ async function verifyCommand(root: string, io: Io): Promise<number> {
   return errors === 0 ? 0 : 1;
 }
 
+async function statsCommand(root: string, io: Io): Promise<number> {
+  const { manifest, diagnostics } = await readManifest(root);
+  printDiagnostics(io, diagnostics);
+  if (hasErrors(diagnostics)) {
+    return 1;
+  }
+  io.stdout(`${formatStats(computeStats(manifest))}\n`);
+  return 0;
+}
+
+async function regenCommand(root: string, io: Io, services: Services, id: string): Promise<number> {
+  const result = await runRegen(root, id, services.generator());
+  printDiagnostics(io, result.diagnostics);
+  if (hasErrors(result.diagnostics)) {
+    return 1;
+  }
+  const cost = result.costUsd === null ? 'unknown' : `$${result.costUsd.toFixed(4)}`;
+  io.stdout(
+    result.passed
+      ? `regen ${id}: passed the approved tests in ${result.attempts} attempt(s); diff vs committed: +${result.added} -${result.removed} lines; cost ${cost}\n`
+      : `regen ${id}: FAILED after ${result.attempts} attempt(s); cost ${cost}\n`,
+  );
+  return result.passed ? 0 : 1;
+}
+
 export async function main(argv: readonly string[], io: Io, services: Services = defaultServices): Promise<number> {
   let exitCode = 0;
   const rootOf = (dir: string): string => path.resolve(io.cwd, dir);
@@ -170,6 +197,21 @@ export async function main(argv: readonly string[], io: Io, services: Services =
     .option('-C, --dir <path>', 'project root', '.')
     .action(async (options: { dir: string }) => {
       exitCode = await verifyCommand(rootOf(options.dir), io);
+    });
+  program
+    .command('stats')
+    .description('generation pass rates and cost from the manifest')
+    .option('-C, --dir <path>', 'project root', '.')
+    .action(async (options: { dir: string }) => {
+      exitCode = await statsCommand(rootOf(options.dir), io);
+    });
+  program
+    .command('regen')
+    .description('regenerate one implementation ignoring the cache and compare it (writes nothing)')
+    .requiredOption('--compare <concept>', 'concept to regenerate')
+    .option('-C, --dir <path>', 'project root', '.')
+    .action(async (options: { dir: string; compare: string }) => {
+      exitCode = await regenCommand(rootOf(options.dir), io, services, options.compare);
     });
   try {
     await program.parseAsync([...argv], { from: 'user' });
