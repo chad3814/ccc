@@ -67,3 +67,7 @@ export function sectionRule(kind: Kind): SectionRule {
 export function usesOf(fm: Frontmatter): readonly string[] {
   return fm.kind === 'sync' ? [] : fm.uses;
 }
+
+export function isHandwritten(fm: Frontmatter): boolean {
+  return fm.kind !== 'sync' && fm.implementation === 'handwritten';
+}

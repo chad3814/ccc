@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { frontmatterSchema, isAdapterKind, isDomainKind, sectionRule, usesOf } from '../src/schema.js';
+import { frontmatterSchema, isAdapterKind, isDomainKind, isHandwritten, sectionRule, usesOf } from '../src/schema.js';
 
 const iface = 'export interface Card { readonly rank: string; }';
 
@@ -69,5 +69,16 @@ describe('kind groups and section rules', () => {
   it('reads uses for any kind', () => {
     expect(usesOf(frontmatterSchema.parse({ kind: 'sync', when: 'a#b', then: ['c#d'] }))).toEqual([]);
     expect(usesOf(frontmatterSchema.parse({ kind: 'value', interface: iface, uses: ['card'] }))).toEqual(['card']);
+  });
+});
+
+describe('isHandwritten', () => {
+  it('is true only for handwritten non-sync concepts', () => {
+    const iface = 'export type A = string;';
+    expect(isHandwritten(frontmatterSchema.parse({ kind: 'value', interface: iface }))).toBe(false);
+    expect(
+      isHandwritten(frontmatterSchema.parse({ kind: 'value', interface: iface, implementation: 'handwritten', source: 'h.ts' })),
+    ).toBe(true);
+    expect(isHandwritten(frontmatterSchema.parse({ kind: 'sync', when: 'a#b', then: ['c#d'] }))).toBe(false);
   });
 });
