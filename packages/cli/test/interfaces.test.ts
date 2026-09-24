@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { collectExports, emitInterfaces, exportsOf, interfacePath, relativeImport } from '../src/interfaces.js';
+import {
+  checkInterfaces,
+  collectExports,
+  emitInterfaces,
+  exportsOf,
+  interfacePath,
+  interfaceProblems,
+  relativeImport,
+} from '../src/interfaces.js';
 import { concept, projectFrom } from './helpers.js';
 
 describe('exportsOf', () => {
@@ -43,7 +51,7 @@ describe('emitInterfaces', () => {
   it('emits a header, imports from dependencies, then the interface', () => {
     const project = projectFrom({
       'card.md': CARD,
-      'game.md': concept('kind: aggregate\ninterface: export class Game {}'),
+      'game.md': concept('kind: aggregate\ninterface: |\n  export class Game {\n    hand(): Hand;\n  }'),
       'game/hand.md': concept(
         'kind: collection\nof: card\ninterface: |\n  export class Hand {\n    add(card: Card): void;\n  }',
       ),
@@ -77,17 +85,58 @@ describe('emitInterfaces', () => {
     expect(files.map((f) => f.id)).toEqual(['card']);
   });
 
-  it('reports export name collisions', () => {
+  it('reports collisions only among referenced dependency exports', () => {
     const project = projectFrom({
       'a.md': concept('kind: value\ninterface: export type Id = string;'),
       'b.md': concept('kind: value\ninterface: export type Id = number;'),
       'c.md': concept('kind: value\nuses: [a, b]\ninterface: export type C = Id;'),
       'd.md': concept('kind: value\nuses: [a]\ninterface: export type Id = boolean;'),
     });
-    const { diagnostics } = emitInterfaces(project, collectExports(project));
+    const { files, diagnostics } = emitInterfaces(project, collectExports(project));
     expect(diagnostics.map((d) => `${d.file}: ${d.message}`)).toEqual([
       "concepts/c.md: 'Id' is exported by both dependencies a and b",
-      "concepts/d.md: 'Id' is exported by both d and its dependency a",
+    ]);
+    expect(files.find((f) => f.id === 'd')?.content).not.toContain('import');
+  });
+
+  it('imports only the names an interface references', () => {
+    const project = projectFrom({
+      'game.md': concept('kind: aggregate\ninterface: |\n  export class Game {\n    deck(): Deck;\n  }'),
+      'game/deck.md': concept('kind: value\ninterface: |\n  export class Empty extends Error {}\n  export class Deck {}'),
+      'game/seats.md': concept('kind: value\ninterface: |\n  export class Empty extends Error {}\n  export class Seats {}'),
+    });
+    const { files, diagnostics } = emitInterfaces(project, collectExports(project));
+    expect(diagnostics).toEqual([]);
+    const game = files.find((f) => f.id === 'game');
+    expect(game?.content).toContain("import { Deck } from './game/deck.js';");
+    expect(game?.content).not.toContain('Empty');
+    expect(game?.content).not.toContain('./game/seats.js');
+  });
+});
+
+describe('interfaceProblems / checkInterfaces', () => {
+  it('accepts an interface with exports and no imports', () => {
+    expect(interfaceProblems('export class A {}')).toEqual([]);
+  });
+  it('rejects imports, ambient modules, global augmentation, and interfaces without exports', () => {
+    expect(interfaceProblems("import { S } from './secret.js';\nexport type A = S;")).toEqual([
+      'interface line 1: interfaces cannot import modules; list the concept in uses instead',
+    ]);
+    expect(interfaceProblems('export class A {}\ndeclare global {\n  interface Leaked {}\n}')).toEqual([
+      'interface line 2: interfaces cannot declare global or ambient modules',
+    ]);
+    expect(interfaceProblems("export class A {}\ndeclare module 'x' {}")).toEqual([
+      'interface line 2: interfaces cannot declare global or ambient modules',
+    ]);
+    expect(interfaceProblems('declare class Card {}')).toEqual(['interface must export at least one declaration']);
+  });
+  it('reports problems on the concept file and ignores syncs', () => {
+    const project = projectFrom({
+      'card.md': concept('kind: value\ninterface: declare class Card {}'),
+      'deal.md': concept('kind: sync\nwhen: card#a\nthen: [card#b]'),
+    });
+    expect(checkInterfaces(project).map((d) => `${d.file}: ${d.message}`)).toEqual([
+      'concepts/card.md: interface must export at least one declaration',
     ]);
   });
 });

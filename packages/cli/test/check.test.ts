@@ -39,6 +39,24 @@ describe('runCheck', () => {
     expect(diagnostics.map((d) => d.message)).toEqual(["interface line 1: Cannot find name 'Nope'. (TS2304)"]);
   });
 
+  it('rejects interfaces that reach other concepts without uses', async () => {
+    const root = await writeProject({
+      'concepts/card.md': concept('kind: value\ninterface: declare class Card {}'),
+      'concepts/secret.md': concept(
+        'kind: value\ninterface: |\n  export class Secret {}\n  declare global {\n    interface Leaked { x: number }\n  }',
+      ),
+      'concepts/hand.md': concept(
+        "kind: value\ninterface: |\n  import { Secret } from './secret.js';\n  export class Hand {\n    cards: Card[];\n    l: Leaked;\n    s: Secret;\n  }",
+      ),
+    });
+    const { diagnostics } = await runCheck(root);
+    expect(diagnostics.map((d) => `${d.file}: ${d.message}`)).toEqual([
+      'concepts/card.md: interface must export at least one declaration',
+      'concepts/hand.md: interface line 1: interfaces cannot import modules; list the concept in uses instead',
+      'concepts/secret.md: interface line 2: interfaces cannot declare global or ambient modules',
+    ]);
+  });
+
   it('returns sorted diagnostics from every stage', async () => {
     const root = await writeProject({
       'concepts/b.md': concept('kind: value\nuses: [a]\ninterface: export type B = string;'),

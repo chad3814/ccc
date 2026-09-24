@@ -26,6 +26,18 @@ describe('parseTscOutput', () => {
     ]);
   });
 
+  it('keeps a multi-line tsc message as one diagnostic', () => {
+    const out = "hand.d.ts(4,20): error TS2322: Type 'A' is not assignable to type 'B'.\n  Types of property 'x' are incompatible.\n";
+    expect(parseTscOutput(out, files)).toEqual([
+      {
+        severity: 'error',
+        file: 'concepts/hand.md',
+        line: 1,
+        message: "interface line 2: Type 'A' is not assignable to type 'B'.\nTypes of property 'x' are incompatible. (TS2322)",
+      },
+    ]);
+  });
+
   it('keeps unrecognized output as a general error', () => {
     expect(parseTscOutput('error TS5023: Unknown compiler option.\n', files)).toEqual([
       { severity: 'error', file: 'concepts/', message: 'tsc: error TS5023: Unknown compiler option.' },

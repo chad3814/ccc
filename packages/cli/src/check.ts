@@ -2,7 +2,7 @@ import { access } from 'node:fs/promises';
 import path from 'node:path';
 import { error, hasErrors, sortDiagnostics, type Diagnostic } from './diagnostics.js';
 import { checkDependencyCycles, checkReferences } from './graph.js';
-import { collectExports, emitInterfaces } from './interfaces.js';
+import { checkInterfaces, collectExports, emitInterfaces } from './interfaces.js';
 import { loadProject, type Project } from './load.js';
 import { checkSyncActions, checkSyncCycles } from './syncs.js';
 import { typecheckInterfaces } from './typecheck.js';
@@ -34,7 +34,7 @@ async function checkHandwrittenSources(project: Project): Promise<Diagnostic[]> 
 // structurally valid project, so its errors aren't noise from broken references.
 export async function runCheck(root: string): Promise<CheckResult> {
   const { project, diagnostics } = await loadProject(root);
-  diagnostics.push(...checkReferences(project), ...checkDependencyCycles(project));
+  diagnostics.push(...checkReferences(project), ...checkDependencyCycles(project), ...checkInterfaces(project));
   diagnostics.push(...(await checkHandwrittenSources(project)));
   const exportsByConcept = collectExports(project);
   diagnostics.push(...checkSyncActions(project, exportsByConcept), ...checkSyncCycles(project));

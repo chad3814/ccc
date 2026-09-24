@@ -56,7 +56,7 @@ The first four are **domain** kinds. `store`, `endpoint`, and `auth` are **adapt
 | Field | Meaning |
 |---|---|
 | `kind` | One of the kinds above |
-| `interface` | TypeScript declarations (classes, functions, types, error classes). Write methods without bodies. Types from dependencies are imported automatically. |
+| `interface` | TypeScript declarations (classes, functions, types, error classes). Write methods without bodies. Never write `import`: types from dependencies listed in `uses` are imported automatically when the interface mentions them. |
 | `uses` | Concepts whose interfaces this one depends on. An aggregate automatically uses its direct children (except syncs). |
 | `implementation` | `generated` (default) or `handwritten` |
 | `source` | For `handwritten` only: path to the module, relative to the project root |
@@ -111,5 +111,5 @@ It makes no LLM calls. Exit code 1 if there are errors. It checks:
 5. No dependency cycles.
 6. Handwritten `source` files exist.
 7. Sync actions exist, and syncs have no cycles.
-8. No exported name collides with a dependency's export.
+8. Interfaces are self-contained: no `import`, no `declare global` or `declare module`, and at least one export. A name an interface uses must not come from two dependencies (only referenced names are imported, and a concept's own exports take precedence).
 9. All interfaces type-check together with TypeScript 7 (only when 1–8 pass). Web types such as `Request` and `Response` are available.

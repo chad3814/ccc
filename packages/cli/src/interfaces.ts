@@ -20,7 +20,7 @@ function isExported(statement: ts.Statement): boolean {
 
 // Reads declarations with the TS 6 API (TS 7 has no stable API yet; spec §7.5).
 export function exportsOf(source: string): ExportInfo {
-  const file = ts.createSourceFile('interface.d.ts', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+  const file = parseInterface(source);
   const names: string[] = [];
   const functions: string[] = [];
   const classMethods = new Map<string, readonly string[]>();
@@ -54,6 +54,58 @@ export function exportsOf(source: string): ExportInfo {
     }
   }
   return { names: [...new Set(names)], functions: [...new Set(functions)], classMethods };
+}
+
+function parseInterface(source: string): ts.SourceFile {
+  return ts.createSourceFile('interface.d.ts', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+}
+
+// An interface is a self-contained module: it reaches other concepts only
+// through `uses`, so imports, ambient modules, and global augmentation are
+// rejected. Without an export it would compile as a global script.
+export function interfaceProblems(source: string): string[] {
+  const file = parseInterface(source);
+  const problems: string[] = [];
+  let exported = false;
+  for (const statement of file.statements) {
+    const line = file.getLineAndCharacterOfPosition(statement.getStart(file)).line + 1;
+    if (ts.isImportDeclaration(statement) || ts.isImportEqualsDeclaration(statement)) {
+      problems.push(`interface line ${line}: interfaces cannot import modules; list the concept in uses instead`);
+    } else if (ts.isModuleDeclaration(statement) && (ts.isStringLiteral(statement.name) || statement.name.text === 'global')) {
+      problems.push(`interface line ${line}: interfaces cannot declare global or ambient modules`);
+    }
+    if (isExported(statement)) {
+      exported = true;
+    }
+  }
+  if (!exported) {
+    problems.push('interface must export at least one declaration');
+  }
+  return problems;
+}
+
+export function checkInterfaces(project: Project): Diagnostic[] {
+  const diagnostics: Diagnostic[] = [];
+  for (const concept of project.concepts.values()) {
+    if (concept.frontmatter.kind !== 'sync') {
+      for (const problem of interfaceProblems(concept.frontmatter.interface)) {
+        diagnostics.push(error(concept.file, problem, { line: 1 }));
+      }
+    }
+  }
+  return diagnostics;
+}
+
+export function referencedNames(source: string): Set<string> {
+  const names = new Set<string>();
+  const visit = (node: ts.Node): void => {
+    if (ts.isIdentifier(node)) {
+      names.add(node.text);
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(parseInterface(source));
+  return names;
 }
 
 export function collectExports(project: Project): Map<ConceptId, ExportInfo> {
@@ -100,6 +152,7 @@ export function emitInterfaces(project: Project, exportsByConcept: ReadonlyMap<C
       continue;
     }
     const ownNames = new Set(own.names);
+    const referenced = referencedNames(fm.interface);
     const importedFrom = new Map<string, ConceptId>();
     const importLines: string[] = [];
     for (const dep of dependenciesOf(concept, project)) {
@@ -109,10 +162,12 @@ export function emitInterfaces(project: Project, exportsByConcept: ReadonlyMap<C
       }
       const names: string[] = [];
       for (const name of depInfo.names) {
+        // Only referenced names are imported; the concept's own exports shadow its dependencies'.
+        if (!referenced.has(name) || ownNames.has(name)) {
+          continue;
+        }
         const previous = importedFrom.get(name);
-        if (ownNames.has(name)) {
-          diagnostics.push(error(concept.file, `'${name}' is exported by both ${concept.id} and its dependency ${dep}`, { line: 1 }));
-        } else if (previous !== undefined) {
+        if (previous !== undefined) {
           diagnostics.push(error(concept.file, `'${name}' is exported by both dependencies ${previous} and ${dep}`, { line: 1 }));
         } else {
           importedFrom.set(name, dep);

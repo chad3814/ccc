@@ -64,6 +64,16 @@ describe('parseConcept', () => {
     expect(concept?.sections.get('Decisions')?.body).toContain('## Rules');
   });
 
+  it('keeps a longer fence open across shorter inner fences', () => {
+    const text = VALID.replace(
+      '## Decisions\n- Unordered.\n',
+      '## Decisions\n- Unordered.\n\n````md\n```\n## Bogus\n```\n````\n',
+    );
+    const { concept, diagnostics } = parseConcept('game.player.hand', FILE, text);
+    expect(diagnostics).toEqual([]);
+    expect(concept?.sections.get('Decisions')?.body).toContain('## Bogus');
+  });
+
   it('reports missing, unterminated, empty, and malformed frontmatter', () => {
     expect(messages('## Intent\nx\n')).toEqual(["error: missing frontmatter: file must start with a '---' line"]);
     expect(messages('---\nkind: value\n')).toEqual(["error: unterminated frontmatter: no closing '---' line"]);

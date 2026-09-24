@@ -23,7 +23,7 @@ export interface ParseResult {
   diagnostics: Diagnostic[];
 }
 
-const FENCE = /^\s*(```|~~~)/;
+const FENCE = /^\s*(`{3,}|~{3,})(.*)$/;
 const HEADING = /^## (.+?)\s*$/;
 const BULLET = /^[-*] (.*)$/;
 const CONTINUATION = /^\s{2,}\S/;
@@ -93,6 +93,8 @@ interface OpenSection {
 function splitSections(file: string, lines: readonly string[], start: number, diagnostics: Diagnostic[]): Map<string, Section> {
   const sections = new Map<string, Section>();
   let current: OpenSection | null = null;
+  // Open fence marker (e.g. ```` ````md ````); CommonMark closes it only with a bare run of the
+  // same character that is at least as long.
   let fence: string | null = null;
   let reportedStray = false;
   const flush = (): void => {
@@ -111,9 +113,10 @@ function splitSections(file: string, lines: readonly string[], start: number, di
     const fenceMatch = FENCE.exec(line);
     if (fenceMatch !== null) {
       const marker = fenceMatch[1] ?? '';
+      const rest = (fenceMatch[2] ?? '').trim();
       if (fence === null) {
         fence = marker;
-      } else if (marker === fence) {
+      } else if (rest === '' && marker[0] === fence[0] && marker.length >= fence.length) {
         fence = null;
       }
     }
