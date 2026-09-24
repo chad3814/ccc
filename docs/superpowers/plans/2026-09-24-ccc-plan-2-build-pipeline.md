@@ -1491,7 +1491,7 @@ describe('checkImports', () => {
 
 describe('allowed imports per concept', () => {
   const project = projectFrom({
-    'card.md': concept('kind: value\ninterface: export interface Card { readonly rank: string }'),
+    'card.md': concept('kind: value\ninterface: |\n  export interface Card { readonly rank: string }'),
     'hand.md': concept('kind: collection\nof: card\ninterface: |\n  export class Hand {\n    add(card: Card): void;\n  }'),
     'counter.md': concept('kind: entity\ninterface: |\n  export class Counter {\n    increment(): void;\n  }'),
     'count-adds.md': concept('kind: sync\nwhen: hand#add\nthen: [counter#increment]'),
@@ -2373,7 +2373,7 @@ import { collectExports } from '../src/interfaces.js';
 import { concept, projectFrom } from './helpers.js';
 
 const project = projectFrom({
-  'card.md': concept('kind: value\ninterface: export interface Card { readonly rank: string }'),
+  'card.md': concept('kind: value\ninterface: |\n  export interface Card { readonly rank: string }'),
   'hand.md': concept(
     'kind: collection\nof: card\ninterface: |\n  export class Hand {\n    add(card: Card): void;\n  }',
     '## Intent\nCards held.\n\n## Rules\n- no duplicates\n\n## Examples\n- add a card\n- reject a duplicate\n',
@@ -3182,7 +3182,7 @@ async function setup() {
     'concepts/user.md': concept(
       'kind: value\nimplementation: handwritten\nsource: handwritten/user.ts\ninterface: export type UserId = string;',
     ),
-    'concepts/card.md': concept('kind: value\ninterface: export interface Card { readonly rank: string }'),
+    'concepts/card.md': concept('kind: value\ninterface: |\n  export interface Card { readonly rank: string }'),
     'handwritten/user.ts': 'export type UserId = string;\n',
   });
   const { project } = await loadProject(root);
