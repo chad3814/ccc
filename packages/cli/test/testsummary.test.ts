@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { sharedCode, testCases } from '../src/testsummary.js';
+import { optionProblems, sharedCode, testCases } from '../src/testsummary.js';
 
 const SOURCE = `import { Hand, DuplicateCard } from './hand.js';
 import { card } from '../card.js';
@@ -65,7 +65,20 @@ describe('testCases', () => {
     expect(four?.body).toBe('const hand = new Hand();\nassertEmpty(hand);');
   });
 
-  it('ignores formatting, comments, and the title when comparing code', () => {
+  it('counts a test\'s options object as part of its code', () => {
+    const failing = SOURCE.replace("it('[ex 1] adds a card', () => {", "it('[ex 1] adds a card', { fails: true }, () => {");
+    expect(testCases(failing)[0]?.code).not.toBe(testCases(SOURCE)[0]?.code);
+  });
+
+  it('counts the describe blocks around a test as part of its code', () => {
+    const scoped = "describe('seeded', () => {\n  it('[ex 1] a', () => { expect(a()).toBe(1); });\n});\ndescribe('empty', () => {\n  it('[ex 2] b', () => { expect(b()).toBe(2); });\n});\n";
+    const swapped = "describe('seeded', () => {\n  it('[ex 2] b', () => { expect(b()).toBe(2); });\n});\ndescribe('empty', () => {\n  it('[ex 1] a', () => { expect(a()).toBe(1); });\n});\n";
+    const before = testCases(scoped);
+    const after = testCases(swapped);
+    expect(after.find((t) => t.example === 1)?.code).not.toBe(before.find((t) => t.example === 1)?.code);
+  });
+
+  it('ignores comments, whitespace, and the title when comparing code', () => {
     const reformatted = SOURCE.replace("it('[ex 1] adds a card', () => {", "it('[ex 1] adds one card', () => { // setup\n")
       .replace('    hand.add(ace);\n', '    hand.add(  ace  );\n');
     expect(testCases(reformatted)[0]?.code).toBe(testCases(SOURCE)[0]?.code);
@@ -84,5 +97,12 @@ describe('sharedCode', () => {
 
   it('changes when setup outside the tests changes', () => {
     expect(sharedCode(SOURCE.replace("card('A', '♠')", "card('K', '♠')"))).not.toBe(sharedCode(SOURCE));
+  });
+});
+
+describe('optionProblems', () => {
+  it('rejects options that skip, focus, or invert a test', () => {
+    const source = "it('[ex 1] a', { fails: true }, () => {});\ntest('[ex 2] b', { timeout: 100, skip: true }, () => {});\nit('[ex 3] c', { timeout: 100 }, () => {});\n";
+    expect(optionProblems(source)).toEqual(['tests must not set fails, skip in their options (every example must run)']);
   });
 });

@@ -10,6 +10,7 @@ import type { ExportsByConcept } from './keys.js';
 import type { Generator } from './llm.js';
 import type { Project } from './load.js';
 import type { Concept } from './parse.js';
+import { optionProblems } from './testsummary.js';
 import { typecheckFiles, withScratch } from './toolchain.js';
 import { readPrompt } from './versions.js';
 
@@ -76,6 +77,7 @@ export async function checkTestSource(ctx: GenerateContext, concept: Concept, so
   const problems = [
     ...tagProblems(exampleTags(source), concept.examples.length),
     ...modifierProblems(source),
+    ...optionProblems(source),
     ...checkImports(source, testImportsFor(concept, ctx.project), TEST_PACKAGES),
   ];
   return problems.length > 0 ? problems : typecheckAgainstInterfaces(ctx, concept, source);

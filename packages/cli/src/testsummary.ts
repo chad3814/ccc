@@ -8,21 +8,38 @@ export interface TestCase {
   // other way (a helper, a thrown error), in which case review shows `body`.
   assertions: string[];
   body: string;
-  // The test function printed without comments or formatting, and without
-  // its title, so a reworded title or reflowed code compares equal.
+  // What the test runs, for comparing against an approved version: the
+  // enclosing describe blocks, then every argument after the title (options
+  // and the test function), printed without comments. The title is left out,
+  // so rewording it compares equal.
   code: string;
 }
 
 const TAG = /^\[ex (\d+)\]/;
 const TEST_FUNCTIONS = new Set(['it', 'test']);
+const SUITE_FUNCTIONS = new Set(['describe', 'suite']);
+// Options that stop a test from running as written.
+const DISABLING_OPTIONS = new Set(['skip', 'only', 'todo', 'fails']);
 // Bookkeeping calls on expect itself, not claims about behavior.
 const EXPECT_BOOKKEEPING = new Set(['assertions', 'hasAssertions']);
 
 const printer = ts.createPrinter({ removeComments: true });
 
-function isTestCall(call: ts.CallExpression): boolean {
+function calleeName(call: ts.CallExpression): string | null {
   const callee = ts.isPropertyAccessExpression(call.expression) ? call.expression.expression : call.expression;
-  return ts.isIdentifier(callee) && TEST_FUNCTIONS.has(callee.text);
+  return ts.isIdentifier(callee) ? callee.text : null;
+}
+
+function isTestCall(call: ts.CallExpression): boolean {
+  return TEST_FUNCTIONS.has(calleeName(call) ?? '');
+}
+
+function isSuiteCall(call: ts.CallExpression): boolean {
+  return SUITE_FUNCTIONS.has(calleeName(call) ?? '');
+}
+
+function isFunction(node: ts.Node): node is ts.ArrowFunction | ts.FunctionExpression {
+  return ts.isArrowFunction(node) || ts.isFunctionExpression(node);
 }
 
 function tagOf(call: ts.CallExpression): number | null {
@@ -95,24 +112,54 @@ function assertionsIn(fn: ts.Node, file: ts.SourceFile): string[] {
 export function testCases(source: string): TestCase[] {
   const file = ts.createSourceFile('test.ts', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
   const cases: TestCase[] = [];
-  const visit = (node: ts.Node): void => {
+  const print = (node: ts.Node): string => printer.printNode(ts.EmitHint.Unspecified, node, file);
+  const visit = (node: ts.Node, suites: readonly string[]): void => {
     if (ts.isCallExpression(node) && isTestCall(node)) {
       const example = tagOf(node);
-      const fn = node.arguments.find((arg) => ts.isArrowFunction(arg) || ts.isFunctionExpression(arg));
-      if (example !== null && fn !== undefined && (ts.isArrowFunction(fn) || ts.isFunctionExpression(fn))) {
+      const fn = node.arguments.find(isFunction);
+      if (example !== null && fn !== undefined) {
         cases.push({
           example,
           assertions: assertionsIn(fn, file),
           body: bodyText(fn, file),
-          code: printer.printNode(ts.EmitHint.Unspecified, fn, file),
+          code: [...suites, ...node.arguments.slice(1).map(print)].join('\n'),
         });
         return;
+      }
+    }
+    if (ts.isCallExpression(node) && isSuiteCall(node)) {
+      // A suite's title and options (not its body) identify the setup a
+      // test inherits; moving a test to another suite changes its code.
+      const signature = `${print(node.expression)}(${node.arguments.filter((arg) => !isFunction(arg)).map(print).join(', ')})`;
+      ts.forEachChild(node, (child) => visit(child, [...suites, signature]));
+      return;
+    }
+    ts.forEachChild(node, (child) => visit(child, suites));
+  };
+  visit(file, []);
+  return cases;
+}
+
+// Options objects can disable a test as surely as `.skip` can.
+export function optionProblems(source: string): string[] {
+  const file = ts.createSourceFile('test.ts', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+  const found = new Set<string>();
+  const visit = (node: ts.Node): void => {
+    if (ts.isCallExpression(node) && (isTestCall(node) || isSuiteCall(node))) {
+      for (const arg of node.arguments.filter(ts.isObjectLiteralExpression)) {
+        for (const property of arg.properties) {
+          const name = property.name !== undefined && ts.isIdentifier(property.name) ? property.name.text : null;
+          if (name !== null && DISABLING_OPTIONS.has(name)) {
+            found.add(name);
+          }
+        }
       }
     }
     ts.forEachChild(node, visit);
   };
   visit(file);
-  return cases;
+  const names = [...found].sort();
+  return names.length === 0 ? [] : [`tests must not set ${names.join(', ')} in their options (every example must run)`];
 }
 
 // Everything in the file outside the tagged tests (imports, helpers,

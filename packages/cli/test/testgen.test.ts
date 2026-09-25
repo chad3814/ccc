@@ -60,6 +60,12 @@ describe('generateTests', () => {
     expect(badImport.outcome.problems[0]).toMatch(/^line 1: '.\/secret.js' is not a dependency/);
   });
 
+  it('rejects tests whose options disable them', async () => {
+    const good = CANNED_TESTS.hand ?? '';
+    const { outcome } = await handTests({ 'tests:hand': () => good.replace(/it\('(\[ex 1\][^']*)', /, "it('$1', { fails: true }, ") });
+    expect(outcome.problems).toContain('tests must not set fails in their options (every example must run)');
+  });
+
   it('fails after the configured attempts', async () => {
     const { outcome } = await handTests({ 'tests:hand': () => null });
     expect(outcome.source).toBeNull();
