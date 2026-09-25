@@ -1,4 +1,5 @@
-import { mkdir, mkdtemp, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, symlink, writeFile } from 'node:fs/promises';
+import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { hasErrors, formatDiagnostic } from '../src/diagnostics.js';
@@ -33,4 +34,17 @@ export function projectFrom(files: Record<string, string>): Project {
     concepts.set(id, result.concept);
   }
   return { root: '/virtual', concepts };
+}
+
+const requireFromTests = createRequire(import.meta.url);
+
+// Generated code in temp projects imports packages (the runtime, hono, zod);
+// link the CLI's installed copies instead of installing.
+export async function linkPackages(root: string, names: readonly string[]): Promise<void> {
+  for (const name of names) {
+    const target = path.dirname(requireFromTests.resolve(`${name}/package.json`));
+    const link = path.join(root, 'node_modules', name);
+    await mkdir(path.dirname(link), { recursive: true });
+    await symlink(target, link, 'dir');
+  }
 }

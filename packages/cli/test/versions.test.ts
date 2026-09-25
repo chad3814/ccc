@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_MODEL, configSchema } from '../src/config.js';
-import { RUNTIME_VERSION, loadVersions, readPrompt } from '../src/versions.js';
+import { runtimeVersion } from '../src/runtimepkg.js';
+import { loadVersions, readPrompt } from '../src/versions.js';
 
 describe('versions', () => {
   it('reads the shipped prompts', async () => {
@@ -16,6 +17,6 @@ describe('versions', () => {
     expect(versions.syncPrompt).not.toBe(versions.implPrompt);
     expect(versions.implModel).toBe(DEFAULT_MODEL);
     expect(versions.testModel).toBe('claude-sonnet-5');
-    expect(versions.runtime).toBe(RUNTIME_VERSION);
+    expect(versions.runtime).toBe(await runtimeVersion());
   });
 });

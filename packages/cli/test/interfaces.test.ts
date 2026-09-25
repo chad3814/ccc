@@ -142,6 +142,16 @@ describe('interfaceProblems / checkInterfaces', () => {
     ]);
     expect(interfaceProblems('declare class Card {}')).toEqual(['interface must export at least one declaration']);
   });
+  it('allows type-only imports from @ccc/runtime and nothing else', () => {
+    expect(interfaceProblems("import type { Database } from '@ccc/runtime';\nexport class S {\n  constructor(db: Database);\n}")).toEqual([]);
+    expect(interfaceProblems("import { Database } from '@ccc/runtime';\nexport class S {}")).toEqual([
+      'interface line 1: interfaces cannot import modules; list the concept in uses instead',
+    ]);
+    expect(interfaceProblems("import type { X } from 'pg';\nexport class S {}")).toEqual([
+      'interface line 1: interfaces cannot import modules; list the concept in uses instead',
+    ]);
+  });
+
   it('reports problems on the concept file and ignores syncs', () => {
     const project = projectFrom({
       'card.md': concept('kind: value\ninterface: declare class Card {}'),

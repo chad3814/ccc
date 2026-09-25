@@ -4,6 +4,7 @@ import { dependenciesOf } from './graph.js';
 import type { ConceptId } from './ids.js';
 import { interfacePath, relativeImport } from './layout.js';
 import type { Project } from './load.js';
+import { RUNTIME_PACKAGE } from './runtimepkg.js';
 import { syncInterface } from './synciface.js';
 
 export { interfacePath, relativeImport } from './layout.js';
@@ -76,7 +77,12 @@ export function interfaceProblems(source: string): string[] {
   let exported = false;
   for (const statement of file.statements) {
     const line = file.getLineAndCharacterOfPosition(statement.getStart(file)).line + 1;
-    if (ts.isImportDeclaration(statement) || ts.isImportEqualsDeclaration(statement)) {
+    const runtimeTypeImport =
+      ts.isImportDeclaration(statement) &&
+      ts.isStringLiteral(statement.moduleSpecifier) &&
+      statement.moduleSpecifier.text === RUNTIME_PACKAGE &&
+      statement.importClause?.isTypeOnly === true;
+    if ((ts.isImportDeclaration(statement) && !runtimeTypeImport) || ts.isImportEqualsDeclaration(statement)) {
       problems.push(`interface line ${line}: interfaces cannot import modules; list the concept in uses instead`);
     } else if (ts.isModuleDeclaration(statement) && (ts.isStringLiteral(statement.name) || statement.name.text === 'global')) {
       problems.push(`interface line ${line}: interfaces cannot declare global or ambient modules`);

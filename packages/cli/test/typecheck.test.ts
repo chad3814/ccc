@@ -67,6 +67,15 @@ describe('typecheckInterfaces (runs TypeScript 7)', () => {
     ]);
   });
 
+  it('resolves runtime types in interfaces', async () => {
+    const files = emit({
+      'store.md': concept(
+        "kind: value\ninterface: |\n  import type { Database } from '@ccc/runtime';\n  export class Store {\n    constructor(db: Database);\n  }",
+      ),
+    });
+    expect(await typecheckInterfaces(files)).toEqual([]);
+  });
+
   it('returns nothing for an empty project', async () => {
     expect(await typecheckInterfaces([])).toEqual([]);
   });

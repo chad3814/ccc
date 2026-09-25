@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { error, type Diagnostic } from './diagnostics.js';
 import type { EmittedInterface } from './interfaces.js';
+import { runtimeTypePaths } from './runtimepkg.js';
 import { parseTscLines, runTsc } from './tsc.js';
 
 const TSCONFIG = {
@@ -45,7 +46,10 @@ export async function typecheckInterfaces(files: readonly EmittedInterface[]): P
   const dir = await mkdtemp(path.join(tmpdir(), 'ccc-interfaces-'));
   try {
     await writeFile(path.join(dir, 'package.json'), '{"type":"module"}\n');
-    await writeFile(path.join(dir, 'tsconfig.json'), `${JSON.stringify(TSCONFIG, null, 2)}\n`);
+    await writeFile(
+      path.join(dir, 'tsconfig.json'),
+      `${JSON.stringify({ ...TSCONFIG, compilerOptions: { ...TSCONFIG.compilerOptions, paths: runtimeTypePaths() } }, null, 2)}\n`,
+    );
     await Promise.all(
       files.map(async (file) => {
         const full = path.join(dir, file.path);

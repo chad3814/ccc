@@ -1,11 +1,10 @@
 import { readFile } from 'node:fs/promises';
 import type { Config } from './config.js';
 import { sha256 } from './hash.js';
+import { runtimeVersion } from './runtimepkg.js';
 
 export type PromptName = 'impl' | 'tests' | 'sync';
 
-// Replaced by the @ccc/runtime package version in Plan 3.
-export const RUNTIME_VERSION = '0.0.0';
 
 export interface Versions {
   implPrompt: string;
@@ -29,6 +28,6 @@ export async function loadVersions(config: Config): Promise<Versions> {
     syncPrompt: await sha256(sync),
     implModel: config.models.impl,
     testModel: config.models.tests,
-    runtime: RUNTIME_VERSION,
+    runtime: await runtimeVersion(),
   };
 }

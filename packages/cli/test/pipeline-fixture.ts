@@ -4,7 +4,7 @@ import type { Generator } from '../src/llm.js';
 import { loadProject } from '../src/load.js';
 import type { GenerateContext } from '../src/testgen.js';
 import type { FakeRequest, FakeResponder } from './fake-generator.js';
-import { writeProject } from './helpers.js';
+import { linkPackages, writeProject } from './helpers.js';
 
 // Four concepts covering functions, a class with a dependency, an entity, and
 // a sync. Levels: card, counter → hand → count-adds.
@@ -249,7 +249,9 @@ export function pipelineResponder(overrides: Overrides = {}): FakeResponder {
 }
 
 export async function createPipelineProject(): Promise<string> {
-  return writeProject({ ...PIPELINE_FILES });
+  const root = await writeProject({ ...PIPELINE_FILES });
+  await linkPackages(root, ['@ccc/runtime']);
+  return root;
 }
 
 export async function pipelineContext(root: string, generator: Generator, config: Partial<Config> = {}): Promise<GenerateContext> {
