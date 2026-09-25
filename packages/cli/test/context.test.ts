@@ -15,7 +15,7 @@ const hand = project.concepts.get('hand');
 if (hand === undefined) throw new Error('fixture');
 
 describe('testRequest', () => {
-  it('asks for one tagged test per example against the interface only', () => {
+  it('asks for one tagged test per example, with the whole concept as context', () => {
     const request = testRequest(hand, project, exportsByConcept, ['card']);
     expect(request.split('\n')[0]).toBe('Write the Vitest test file for concept `hand` (collection).');
     expect(request).toContain('Test file: .ccc/gen/hand.test.ts');
@@ -23,7 +23,8 @@ describe('testRequest', () => {
     expect(request).toContain('[ex 1] add a card\n[ex 2] reject a duplicate');
     expect(request).toContain("### card: import from './card.js'");
     expect(request).toContain('export class Hand {');
-    expect(request).not.toContain('no duplicates');
+    expect(request).toContain('## Rules\n- no duplicates');
+    expect(request).toContain('Use the rest of the concept (Rules, Decisions, Schema) as context');
   });
 });
 

@@ -90,8 +90,8 @@ function syncsSection(concept: Concept, project: Project, exportsByConcept: Expo
   return lines.length === 0 ? [] : ['## Syncs that may fire', ...lines, ''];
 }
 
-// The test writer sees the interface, Intent, and Examples only; never the
-// Rules or an implementation (spec §4.4).
+// The test writer sees the whole concept (the same specification the
+// implementer gets), but never an implementation (spec §4.4).
 export function testRequest(
   concept: Concept,
   project: Project,
@@ -110,9 +110,14 @@ export function testRequest(
     '',
     '## Intent',
     concept.sections.get('Intent')?.body ?? '',
+    ...['Rules', 'Decisions', 'Schema'].flatMap((name) => {
+      const section = concept.sections.get(name);
+      return section === undefined ? [] : ['', `## ${name}`, section.body];
+    }),
     '',
     '## Examples',
     'Write exactly one test per example. Start each test name with its tag.',
+    'Use the rest of the concept (Rules, Decisions, Schema) as context for setting up and checking each example, but assert only what the example states.',
     ...concept.examples.map((example, index) => `[ex ${index + 1}] ${example}`),
     '',
     ...testSupportSection(concept, project),

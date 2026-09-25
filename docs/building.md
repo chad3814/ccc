@@ -19,7 +19,7 @@ git add concepts .ccc && git commit
 
 | Path | What | LLM? |
 |---|---|---|
-| `.ccc/gen/<id>.test.ts` | Tests, one per example, written from the interface, Intent, and Examples only | yes |
+| `.ccc/gen/<id>.test.ts` | Tests, one per example, written from the concept and its dependencies' interfaces (never an implementation) | yes |
 | `.ccc/gen/<id>.ts` | Implementation (or a re-export of a handwritten source) | yes (no for handwritten) |
 | `.ccc/interfaces/<id>.d.ts` | Each concept's interface; syncs get a synthesized one | no |
 | `.ccc/gen/<id>.contract.d.ts` | The interface again, beside the module, so its imports resolve to the generated dependencies | no |
@@ -32,7 +32,7 @@ Never edit these files. `ccc verify` names any file that changed since the build
 
 ## When things regenerate
 
-- **Tests** regenerate when a concept's interface, Intent, or Examples change, or a dependency's interface changes. New tests need approval again.
+- **Tests** regenerate when anything in the concept changes, or a dependency's interface changes. New tests need approval again.
 - **Implementations** regenerate when anything in the concept changes (Rules and Decisions included), when a dependency's interface changes, or when the tests change.
 - A dependency's Rules, Decisions, or implementation never trigger regeneration: concepts depend on interfaces only.
 - Changing a model or upgrading ccc (its prompts) invalidates everything that model or prompt produced.

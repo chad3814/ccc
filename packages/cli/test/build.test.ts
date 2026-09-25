@@ -63,13 +63,13 @@ describe('runBuild', () => {
     expect(result.generated).toEqual({ tests: [], impl: [] });
   });
 
-  it('regenerates only the implementation when Rules change', async () => {
+  it('regenerates the tests and implementation when Rules change', async () => {
     const root = await copyProject(built);
     const hand = PIPELINE_FILES['concepts/hand.md'] ?? '';
     await writeFileAtomic(root, 'concepts/hand.md', hand.replace('never holds the same card twice', 'never holds a card twice'));
     const { result } = await build(root);
     expect(result.ok).toBe(true);
-    expect(result.generated).toEqual({ tests: [], impl: ['hand'] });
+    expect(result.generated).toEqual({ tests: ['hand'], impl: ['hand'] });
   });
 
   it('regenerates dependents when a dependency interface changes', async () => {

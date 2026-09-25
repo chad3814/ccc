@@ -221,7 +221,7 @@ A concept's key includes its dependencies' **interfaces**, never their implement
 
 | Artifact | Key = SHA-256 of |
 |---|---|
-| Tests | own interface + Intent + Examples + interfaces of all transitive dependencies + test prompt version + test model + runtime version |
+| Tests | normalized concept file + own interface + interfaces of all transitive dependencies + test prompt version + test model + runtime version |
 | Implementation | normalized concept file + dependency interfaces + current test file hash + impl prompt version + impl model + runtime version |
 | Sync handler | normalized sync file + `when`/`then` interfaces + current test file hash + prompt version + model + runtime version |
 
@@ -295,7 +295,7 @@ Node built-ins are not on any list, so no kind can import them. oxlint enforces 
 
 ### 4.4 Test generation (independent pass)
 
-- Context: Intent, Examples, own interface, dependency interfaces. **Never an implementation, never the Rules.** The examples are the specification.
+- Context: the whole concept (Intent, Rules, Examples, Decisions, Schema), its interface, and the interfaces of all transitive dependencies. **Never an implementation.** The independence that matters is from the implementation; the Rules are specification, and hiding them made tests guess at things the concept states (request shapes, turn order). Each test still checks exactly what its example states.
 - Each example bullet becomes exactly one Vitest test named `[ex N] <summary>` (N is the 1-based bullet index). ccc parses the returned file and rejects it if the set of `[ex N]` names does not equal `1..count(examples)`; this counts as a failed attempt.
 - Test failures map directly back to example bullets.
 - Adapter tests are hermetic: stores run against PGlite; endpoints run through Hono `app.request()` with PGlite-backed stores; auth likewise.
@@ -405,7 +405,7 @@ typescript-eslint does not support TypeScript 7 (peer range `<6.1`), so linting 
 ## 8. Risks and open questions
 
 - **Concept granularity.** Too fine becomes pseudocode; too coarse under-specifies. Settled by using the card game, not up front.
-- **Test-approval fatigue.** If every regeneration needs re-approval, developers will rubber-stamp. Tests regenerate only when interface, Intent, or Examples change, which should keep approvals rare; `ccc stats` should track approval frequency.
+- **Test-approval fatigue.** If every regeneration needs re-approval, developers will rubber-stamp. Tests regenerate whenever their concept changes (the test writer sees the whole concept), so any concept edit means re-approving that concept's tests; `ccc stats` should track approval frequency.
 - **Prose ambiguity in syncs.** Conditions live in prose; if handlers misread them often, a structured `where` clause may be needed.
 - **Whole-project `tsc` per attempt** may be slow as projects grow; acceptable for v1, revisit with incremental `tsc --build` if needed.
 - **Generated auth code** is a security risk outside the prototype.

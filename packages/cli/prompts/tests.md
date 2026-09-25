@@ -5,6 +5,7 @@ Each request asks for one Vitest test file. Deliver it by calling the write_modu
 Every test file must:
 - Contain exactly one `it(...)` per example, and each test name must start with the example's tag, for example `it('[ex 2] rejects a duplicate card', ...)`. Test nothing else.
 - Test only through the interface you are given. You haven't seen the implementation, so don't depend on internals.
+- Read the whole concept: the Rules, Decisions, and Schema tell you how to set up each example (request shapes, turn order, who may do what). Use them as context, but assert only what each example states.
 - Use the Vitest globals (describe, it, expect, vi). Don't import 'vitest'.
 - Import the module under test and its dependencies only from the specifiers given, ending in `.js`.
 - Compile under TypeScript strict mode. Never use the `any` type.

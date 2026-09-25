@@ -29,11 +29,17 @@ describe('cache keys', () => {
     expect(await keysFor(BASE, 'hand')).toEqual(await keysFor(BASE, 'hand'));
   });
 
-  it('change only the implementation key when Rules change', async () => {
+  it('change both keys when Rules change, since tests see the whole concept', async () => {
     const before = await keysFor(BASE, 'hand');
     const after = await keysFor({ ...BASE, 'hand.md': HAND('- no duplicates, ever') }, 'hand');
-    expect(after.test).toBe(before.test);
+    expect(after.test).not.toBe(before.test);
     expect(after.impl).not.toBe(before.impl);
+  });
+
+  it('ignore formatting-only edits in both keys', async () => {
+    const before = await keysFor(BASE, 'hand');
+    const after = await keysFor({ ...BASE, 'hand.md': HAND('- no duplicates   ') }, 'hand');
+    expect(after).toEqual(before);
   });
 
   it('change both keys when Examples change', async () => {

@@ -26,7 +26,7 @@ The HTTP API for playing High Card.
 - POST /games {"seats": 2} with a token → 201 with an id; GET /games/<id> → 200 with status "waiting" and no players
 - two users (sessions from auth.signup) join a 2-seat game → the second join's view has status "playing" and 5 cards in hand
 - a third user joins a full 2-seat game → 409
-- once a 2-seat game is playing, the player whose turn it isn't takes the first card of their own view's hand (GET /games/<id> with their own token) and sends POST /games/<id>/play with body {"rank": card.rank, "suit": card.suit} → 409
-- the player whose turn it is takes the first card of their own view's hand (GET /games/<id> with their own token) and sends POST /games/<id>/play with body {"rank": card.rank, "suit": card.suit} → 200 with body {"result": PlayResult, "view": GameView}; result.trickComplete is false and view.table lists that card
-- two players play all 10 cards: before each play, find whose turn it is from GET /games/<id>, then that player fetches their own view with their own token and sends POST /games/<id>/play with body {"rank": card.rank, "suit": card.suit} for the first card of their hand → every play is 200, and the tenth response's body has result.finished true and a non-null result.winner
+- once a 2-seat game is playing, the player whose turn it isn't plays a card from their hand → 409
+- the player whose turn it is plays the first card of their view's hand → 200; result.trickComplete is false and view.table lists that card
+- two players play every card, each playing the first card of their hand when view.turn is theirs → the tenth response has result.finished true and a winner
 - GET /games/unknown-id with a token → 404

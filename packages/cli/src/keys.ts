@@ -37,8 +37,8 @@ export async function testKey(
       id: concept.id,
       kind: concept.frontmatter.kind,
       interface: interfaceTextOf(concept, exportsByConcept),
-      intent: concept.sections.get('Intent')?.body ?? '',
-      examples: concept.examples,
+      // The test writer sees the whole concept, so all of it is in the key.
+      concept: normalizeConcept(concept),
       dependencies: dependencyInterfaces(transitiveDependencies(concept, project), project, exportsByConcept),
       prompt: versions.testPrompt,
       model: versions.testModel,

@@ -99,7 +99,7 @@ describe('runVerify', () => {
     const counter = PIPELINE_FILES['concepts/counter.md'] ?? '';
     await writeFileAtomic(root, 'concepts/counter.md', counter.replace('- new Counter().value() → 0', '- a new counter reads 0'));
     const found = await messages(root);
-    expect(found).toContain('concepts/hand.md: changed since the last build (implementation is stale); run ccc build');
+    expect(found).toContain('concepts/hand.md: changed since the last build (tests are stale); run ccc build');
     expect(found).toContain('concepts/card.md: changed since the last build (tests are stale); run ccc build');
     expect(found).toContain('concepts/counter.md: changed since the last build (tests are stale); run ccc build');
   });
