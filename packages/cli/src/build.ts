@@ -16,7 +16,7 @@ import type { Generator } from './llm.js';
 import type { Project } from './load.js';
 import { entryFor, hashFiles, listCccFiles, readManifest, writeManifest, type Manifest } from './manifest.js';
 import type { Concept } from './parse.js';
-import { dependencyClosure, topologicalLevels } from './order.js';
+import { topologicalLevels } from './order.js';
 import { mapPool } from './pool.js';
 import { isHandwritten } from './schema.js';
 import { generateTests, type GenerateContext } from './testgen.js';
@@ -52,6 +52,35 @@ export interface BuildResult {
 
 function compareIds(a: string, b: string): number {
   return a < b ? -1 : a > b ? 1 : 0;
+}
+
+// What a concept needs built before it. An endpoint's tests run the whole
+// app, and createApp imports every adapter while wiring imports every sync,
+// so an endpoint depends on all of those too.
+function buildDependencies(concept: Concept, project: Project): ConceptId[] {
+  const direct = dependenciesOf(concept, project);
+  if (concept.frontmatter.kind !== 'endpoint') {
+    return direct;
+  }
+  const composed = [...project.concepts.values()]
+    .filter((c) => ['store', 'auth', 'sync'].includes(c.frontmatter.kind))
+    .map((c) => c.id);
+  return [...new Set([...direct, ...composed])].sort(compareIds);
+}
+
+function buildClosure(project: Project, id: ConceptId): Set<ConceptId> {
+  const seen = new Set<ConceptId>();
+  const queue = [id];
+  while (queue.length > 0) {
+    const next = queue.pop();
+    const concept = next === undefined ? undefined : project.concepts.get(next);
+    if (next === undefined || concept === undefined || seen.has(next)) {
+      continue;
+    }
+    seen.add(next);
+    queue.push(...buildDependencies(concept, project));
+  }
+  return seen;
 }
 
 interface PlanState {
@@ -178,7 +207,7 @@ export async function runBuild(options: BuildOptions): Promise<BuildResult> {
   const { manifest } = manifestResult;
   const exportsByConcept = collectExports(project);
   const versions = await loadVersions(config);
-  const scope = options.only === undefined ? new Set(project.concepts.keys()) : dependencyClosure(project, options.only);
+  const scope = options.only === undefined ? new Set(project.concepts.keys()) : buildClosure(project, options.only);
   const states = await planBuild(root, project, exportsByConcept, versions, manifest, scope);
   result.plan = [...states.values()].map((state) => state.item);
   if (options.dryRun === true) {
@@ -237,7 +266,7 @@ export async function runBuild(options: BuildOptions): Promise<BuildResult> {
             if (concept === undefined || failed.has(id)) {
               return;
             }
-            const blocker = dependenciesOf(concept, project).find((dep) => failed.has(dep) || skipped.has(dep));
+            const blocker = buildDependencies(concept, project).find((dep) => failed.has(dep) || skipped.has(dep));
             if (blocker !== undefined) {
               skipped.add(id);
               result.diagnostics.push(warning(concept.file, `skipped: dependency '${blocker}' did not build`));
@@ -279,7 +308,9 @@ export async function runBuild(options: BuildOptions): Promise<BuildResult> {
       }
 
       // Stage 5: the composition files must type-check against what was built.
-      if (failed.size === 0 && skipped.size === 0) {
+      // They reference every adapter, sync, and endpoint, so only a complete
+      // build can check them.
+      if (failed.size === 0 && skipped.size === 0 && scope.size === project.concepts.size) {
         const composition = new Set([WIRING_FILE, SERVER_FILE]);
         for (const issue of await typecheckFiles(root, [...composition])) {
           if (composition.has(issue.file) || issue.file === '') {

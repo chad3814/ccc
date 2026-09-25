@@ -12,4 +12,4 @@ export {
   type Sql,
   type SqlValue,
 } from './sql.js';
-export { Scope, SyncTargetMissing, afterAction, currentScope, withScope } from './scope.js';
+export { Scope, SyncTargetMissing, afterAction, currentScope, requireScope, withScope } from './scope.js';

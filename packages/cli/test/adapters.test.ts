@@ -88,3 +88,20 @@ describe('combinedSchema', () => {
     expect(combinedSchema(projectFrom({ 'tally.md': TALLY }))).toBe('');
   });
 });
+
+describe('sync targets an endpoint must bind', () => {
+  it('reports domain targets the endpoint cannot import', () => {
+    const files = {
+      'game.md': concept('kind: aggregate\ninterface: |\n  export class Game {\n    finish(): void;\n  }'),
+      'stats.md': concept('kind: aggregate\ninterface: |\n  export class Stats {\n    bump(): void;\n  }'),
+      'count-finishes.md': concept('kind: sync\nwhen: game#finish\nthen: [stats#bump]'),
+      'api.md': concept(
+        'kind: endpoint\nuses: [game]\ninterface: |\n  export function createHandler(deps: object): (request: Request) => Promise<Response>;',
+      ),
+    };
+    expect(messages(files)).toEqual([
+      "concepts/api.md: sync count-finishes needs 'stats' bound in scope, but api doesn't use it; add stats to uses",
+    ]);
+    expect(messages({ ...files, 'api.md': files['api.md'].replace('uses: [game]', 'uses: [game, stats]') })).toEqual([]);
+  });
+});

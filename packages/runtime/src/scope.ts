@@ -21,6 +21,8 @@ export class Scope {
   }
 
   defer(work: Promise<void>): void {
+    // Mark the rejection handled now; drain() still sees and rethrows it.
+    work.catch(() => undefined);
     this.#pending.push(work);
   }
 
@@ -63,13 +65,20 @@ export function currentScope(): Scope | undefined {
   return storage.getStore();
 }
 
-// Called by generated wiring after a trigger action returns: sync work runs
-// once the action settles (and only if it succeeded), inside the scope.
-export function afterAction<R>(result: R, sync: string, run: (settled: Awaited<R>, scope: Scope) => Promise<void>): R {
+// Called by generated wiring before a trigger action runs, so an action
+// outside any scope fails before its side effects rather than after.
+export function requireScope(sync: string): Scope {
   const scope = storage.getStore();
   if (scope === undefined) {
     throw new Error(`sync ${sync} fired outside withScope`);
   }
+  return scope;
+}
+
+// Called by generated wiring after a trigger action returns: sync work runs
+// once the action settles (and only if it succeeded), inside the scope.
+export function afterAction<R>(result: R, sync: string, run: (settled: Awaited<R>, scope: Scope) => Promise<void>): R {
+  const scope = requireScope(sync);
   scope.defer(
     Promise.resolve(result).then(
       (settled) => run(settled, scope),

@@ -31,7 +31,9 @@ When a trigger action succeeds, its sync's handler is deferred into the current 
 - **Domain concepts:** resolved from bindings the endpoint adds with `withScope({ 'game': game }, …)`.
 - **Function actions:** resolved from their module.
 
-`withScope` waits for all deferred work, including syncs triggered by syncs, before it resolves. A failing handler therefore fails the whole operation, and a surrounding transaction rolls back. A missing binding fails with a message naming the sync and the concept id to bind.
+Handlers start after their trigger succeeds and run alongside the caller. `withScope` waits for all deferred work, including syncs triggered by syncs, before it resolves, and rethrows the first failure. So save and respond only after `await withScope(...)` returns. A trigger called outside any scope throws before it does anything. A missing binding fails with a message naming the sync and the concept id to bind.
+
+Syncs are not transactional in this version. Adapters are bound to the app's `db`, so a failing sync fails the request but doesn't undo writes already made. Don't wrap sync-triggering actions in `withTransaction`: with PGlite it deadlocks.
 
 ## Databases
 

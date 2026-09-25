@@ -25,6 +25,8 @@ describe('adapter pipeline', () => {
     expect(await readFileOrNull(root, '.ccc/gen/server.ts')).toContain('tallyAudit: new a0.TallyAudit(db),');
   });
 
+  // peek-api runs first and reads each body, so these POSTs also prove every
+  // endpoint receives its own clone of the request.
   it('serves requests with syncs firing inside the request scope', async () => {
     const server = await import(pathToFileURL(path.join(root, '.ccc/gen/server.ts')).href);
     const schema = await import(pathToFileURL(path.join(root, '.ccc/gen/schema.ts')).href);

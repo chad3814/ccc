@@ -1,5 +1,6 @@
+import { setTimeout as sleep } from 'node:timers/promises';
 import { describe, expect, it } from 'vitest';
-import { SyncTargetMissing, afterAction, currentScope, withScope } from '../src/scope.js';
+import { SyncTargetMissing, afterAction, currentScope, requireScope, withScope } from '../src/scope.js';
 
 class Game {
   dealt = 0;
@@ -66,6 +67,28 @@ describe('afterAction', () => {
     ).rejects.toThrow('handler failed');
   });
 
+  it('fails the operation without an unhandled rejection when the caller is still awaiting', async () => {
+    const unhandled: string[] = [];
+    const onUnhandled = (reason: Error): void => {
+      unhandled.push(reason.message);
+    };
+    process.on('unhandledRejection', onUnhandled);
+    try {
+      await expect(
+        withScope({}, async () => {
+          afterAction(undefined, 'late', async () => {
+            throw new Error('handler failed while caller awaited');
+          });
+          await sleep(20);
+        }),
+      ).rejects.toThrow('handler failed while caller awaited');
+      await sleep(5);
+      expect(unhandled).toEqual([]);
+    } finally {
+      process.off('unhandledRejection', onUnhandled);
+    }
+  });
+
   it('skips syncs when an async action rejects', async () => {
     let ran = false;
     await expect(
@@ -76,6 +99,13 @@ describe('afterAction', () => {
       }),
     ).rejects.toThrow('action failed');
     expect(ran).toBe(false);
+  });
+
+  it('lets wiring check for a scope before the action runs', async () => {
+    expect(() => requireScope('on-save')).toThrow('sync on-save fired outside withScope');
+    await withScope({}, async () => {
+      expect(requireScope('on-save')).toBe(currentScope());
+    });
   });
 
   it('refuses to run outside a scope', () => {

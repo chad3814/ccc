@@ -1,9 +1,11 @@
 import { error, type Diagnostic } from './diagnostics.js';
+import { transitiveDependencies } from './imports.js';
 import { parentOf, parseActionRef, type ConceptId } from './ids.js';
 import type { ExportInfo } from './interfaces.js';
 import type { Project } from './load.js';
 import type { Concept } from './parse.js';
 import { topologicalLevels } from './order.js';
+import { isAdapterKind } from './schema.js';
 import { primaryClassName } from './syncs.js';
 
 // Top-level names the build writes into .ccc/gen itself.
@@ -60,6 +62,42 @@ export function checkAdapters(project: Project, exportsByConcept: ReadonlyMap<Co
           error(
             concept.file,
             `${fm.when}: sync triggers must be methods of class ${primaryClassName(when.conceptId)}; exported functions can't be wired`,
+            { line: 1 },
+          ),
+        );
+      }
+    }
+  }
+  diagnostics.push(...unbindableTargets(project, exportsByConcept));
+  return diagnostics;
+}
+
+// An endpoint binds the domain targets of the syncs its actions can trigger;
+// it can only bind concepts it can import.
+function unbindableTargets(project: Project, exportsByConcept: ReadonlyMap<ConceptId, ExportInfo>): Diagnostic[] {
+  const diagnostics: Diagnostic[] = [];
+  const syncs = [...project.concepts.values()].filter((c) => c.frontmatter.kind === 'sync');
+  for (const endpoint of project.concepts.values()) {
+    if (endpoint.frontmatter.kind !== 'endpoint') {
+      continue;
+    }
+    const reachable = new Set(transitiveDependencies(endpoint, project));
+    for (const sync of syncs) {
+      const fm = sync.frontmatter;
+      if (fm.kind !== 'sync' || !reachable.has(parseActionRef(fm.when).conceptId)) {
+        continue;
+      }
+      for (const ref of fm.then) {
+        const { conceptId } = parseActionRef(ref);
+        const target = project.concepts.get(conceptId);
+        const isClassTarget = exportsByConcept.get(conceptId)?.classMethods.has(primaryClassName(conceptId)) === true;
+        if (target === undefined || isAdapterKind(target.frontmatter.kind) || !isClassTarget || reachable.has(conceptId)) {
+          continue;
+        }
+        diagnostics.push(
+          error(
+            endpoint.file,
+            `sync ${sync.id} needs '${conceptId}' bound in scope, but ${endpoint.id} doesn't use it; add ${conceptId} to uses`,
             { line: 1 },
           ),
         );

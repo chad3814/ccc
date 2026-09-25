@@ -124,6 +124,21 @@ export const ADAPTER_FILES: Readonly<Record<string, string>> = {
     '- GET /elsewhere → 404',
     '',
   ].join('\n'),
+  // Reads every request body and handles nothing: the live requests only
+  // work if each endpoint gets its own copy of the request.
+  'concepts/peek-api.md': [
+    '---',
+    'kind: endpoint',
+    'interface: |',
+    '  export function createHandler(deps: object): (request: Request) => Promise<Response>;',
+    '---',
+    '## Intent',
+    'Reads every request body and handles nothing.',
+    '',
+    '## Examples',
+    '- any request → 404 (unmatched)',
+    '',
+  ].join('\n'),
 };
 
 export const ADAPTER_TESTS: Readonly<Record<string, string>> = {
@@ -255,6 +270,16 @@ export const ADAPTER_TESTS: Readonly<Record<string, string>> = {
     "  it('[ex 4] does not handle other routes', async () => {",
     "    expect((await (await app())(new Request('http://test/elsewhere'))).status).toBe(404);",
     '  });',
+    '});',
+    '',
+  ].join('\n'),
+  'peek-api': [
+    "import { pgliteDatabase } from '@ccc/runtime/pglite';",
+    "import { createApp } from './server.js';",
+    '',
+    "it('[ex 1] handles nothing', async () => {",
+    "  const app = await createApp(pgliteDatabase(), { endpoints: ['peek-api'] });",
+    "  expect((await app(new Request('http://test/x', { method: 'POST', body: 'hello' }))).status).toBe(404);",
     '});',
     '',
   ].join('\n'),
@@ -402,6 +427,17 @@ export const ADAPTER_IMPL: Readonly<Record<string, string>> = {
     "  app.get('/tallies/:id/audit', async (c) => c.json(await deps.tallyAudit.entries(c.req.param('id'))));",
     '  app.notFound(() => unmatched());',
     '  return async (request) => app.fetch(request);',
+    '}',
+    '',
+  ].join('\n'),
+  'peek-api': [
+    "import { unmatched } from '@ccc/runtime';",
+    '',
+    'export function createHandler(_deps: object): (request: Request) => Promise<Response> {',
+    '  return async (request) => {',
+    '    await request.text();',
+    '    return unmatched();',
+    '  };',
     '}',
     '',
   ].join('\n'),

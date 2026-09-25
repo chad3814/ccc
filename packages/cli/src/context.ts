@@ -63,6 +63,7 @@ function testSupportSection(concept: Concept, project: Project): string[] {
   if (concept.frontmatter.kind === 'endpoint') {
     lines.push(
       `Build the app with \`const app = await createApp(db, { endpoints: ['${concept.id}'] })\` from '${relativeImport(concept.id, 'server')}' and send requests with \`await app(new Request('http://test/<path>', { method, headers, body }))\`.`,
+      "Loading the app activates sync wiring: call a sync's trigger methods only inside `withScope({ '<concept id>': instance }, async () => { ... })` from '@ccc/runtime', or set up state through HTTP requests.",
     );
   }
   return [...lines, ''];

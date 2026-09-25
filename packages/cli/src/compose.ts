@@ -80,6 +80,7 @@ export function wiringSource(project: Project, exportsByConcept: ReadonlyMap<Con
         '{',
         `  const original = ${trigger}.prototype.${when.member};`,
         `  ${trigger}.prototype.${when.member} = function (this: ${trigger}, ...args: Parameters<${trigger}['${when.member}']>): ReturnType<${trigger}['${when.member}']> {`,
+        `    requireScope('${sync.id}');`,
         '    const result = original.apply(this, args);',
         `    return afterAction(result, '${sync.id}', async (settled, scope) => {`,
         `      await ${handler}.handle({ target: this, args, result: settled }, { ${targets.join(', ')} });`,
@@ -91,7 +92,7 @@ export function wiringSource(project: Project, exportsByConcept: ReadonlyMap<Con
     );
   }
   const imports = [...aliases].map(([id, name]) => `import * as ${name} from '${modulePathFromGen(id)}';`);
-  return [HEADER, "import { afterAction } from '@ccc/runtime';", ...imports, '', ...blocks].join('\n');
+  return [HEADER, "import { afterAction, requireScope } from '@ccc/runtime';", ...imports, '', ...blocks].join('\n');
 }
 
 export function serverSource(project: Project): string {
