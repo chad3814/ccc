@@ -1,3 +1,4 @@
+import { MAIN_FILE, SCHEMA_SQL_FILE, SCHEMA_TS_FILE, SERVER_FILE, WIRING_FILE, compositionFiles } from './compose.js';
 import type { Diagnostic } from './diagnostics.js';
 import { listFilesUnder, readFileOrNull, removeFile, writeFileAtomic } from './fsutil.js';
 import { emitInterfaces, exportsOf } from './interfaces.js';
@@ -19,7 +20,7 @@ import {
 import type { Project } from './load.js';
 
 export function expectedFiles(project: Project): Set<string> {
-  const files = new Set(['.ccc/package.json', '.ccc/.gitignore']);
+  const files = new Set(['.ccc/package.json', '.ccc/.gitignore', WIRING_FILE, SERVER_FILE, MAIN_FILE, SCHEMA_SQL_FILE, SCHEMA_TS_FILE]);
   for (const id of project.concepts.keys()) {
     files.add(modulePath(id));
     files.add(testPath(id));
@@ -52,6 +53,7 @@ export function deterministicWrites(project: Project, exportsByConcept: ExportsB
       writes.push([modulePath(concept.id), handwrittenModuleSource(concept.id, fm.source)]);
     }
   }
+  writes.push(...compositionFiles(project, exportsByConcept));
   return { writes, diagnostics };
 }
 

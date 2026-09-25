@@ -10,7 +10,7 @@ import { readManifest, writeManifest } from '../src/manifest.js';
 import { runVerify } from '../src/verify.js';
 import { FakeGenerator } from './fake-generator.js';
 import { PIPELINE_FILES, createPipelineProject, pipelineResponder } from './pipeline-fixture.js';
-import { concept, writeProject } from './helpers.js';
+import { concept, linkPackages, writeProject } from './helpers.js';
 
 let built = '';
 
@@ -131,6 +131,7 @@ describe('handwritten sources', () => {
       ),
       'handwritten/label.ts': 'export function label(name: string): string {\n  return `[${name}]`;\n}\n',
     });
+    await linkPackages(root, ['@ccc/runtime']);
     const test = "import { label } from './label.js';\n\ndescribe('label', () => {\n  it('[ex 1] wraps the name', () => {\n    expect(label('a')).toBe('[a]');\n  });\n});\n";
     const result = await runBuild({ root, generator: new FakeGenerator(() => test) });
     expect(result.diagnostics.filter((d) => d.severity === 'error')).toEqual([]);

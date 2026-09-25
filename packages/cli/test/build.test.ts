@@ -135,6 +135,14 @@ describe('runBuild', () => {
     expect(manifest.concepts.card?.implKey).toMatch(/^[0-9a-f]{64}$/);
   }, 180_000);
 
+  it('emits wiring and a composition root that type-check', async () => {
+    const wiring = await readFileOrNull(built, '.ccc/gen/wiring.ts');
+    expect(wiring).toContain("afterAction(result, 'count-adds'");
+    expect(await readFileOrNull(built, '.ccc/gen/server.ts')).toContain('export async function createApp(');
+    const { manifest } = await readManifest(built);
+    expect(manifest.files['.ccc/gen/wiring.ts']).toMatch(/^[0-9a-f]{64}$/);
+  });
+
   it('plans without writing on a dry run', async () => {
     const root = await createPipelineProject();
     const { fake, result } = await build(root, {}, { dryRun: true });

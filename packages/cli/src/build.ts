@@ -7,6 +7,7 @@ import type { GenerationOutcome } from './generation.js';
 import { dependenciesOf } from './graph.js';
 import { sha256 } from './hash.js';
 import type { ConceptId } from './ids.js';
+import { SERVER_FILE, WIRING_FILE } from './compose.js';
 import { checkModuleOnDisk, generateImpl } from './implgen.js';
 import { collectExports } from './interfaces.js';
 import { implKey, testKey, type ExportsByConcept } from './keys.js';
@@ -19,7 +20,7 @@ import { dependencyClosure, topologicalLevels } from './order.js';
 import { mapPool } from './pool.js';
 import { isHandwritten } from './schema.js';
 import { generateTests, type GenerateContext } from './testgen.js';
-import { runTests } from './toolchain.js';
+import { runTests, typecheckFiles } from './toolchain.js';
 import { loadVersions, type Versions } from './versions.js';
 
 export { dependencyClosure, topologicalLevels } from './order.js';
@@ -275,6 +276,18 @@ export async function runBuild(options: BuildOptions): Promise<BuildResult> {
             log(`impl   ${id}  generated in ${outcome.record.attempts} attempt(s)`);
           },
         );
+      }
+
+      // Stage 5: the composition files must type-check against what was built.
+      if (failed.size === 0 && skipped.size === 0) {
+        const composition = new Set([WIRING_FILE, SERVER_FILE]);
+        for (const issue of await typecheckFiles(root, [...composition])) {
+          if (composition.has(issue.file) || issue.file === '') {
+            result.diagnostics.push(
+              error(issue.file || WIRING_FILE, `composition: ${issue.line === null ? '' : `line ${issue.line}: `}${issue.message}`),
+            );
+          }
+        }
       }
 
       // Stage 6: the full suite, which exercises cross-concept behavior.

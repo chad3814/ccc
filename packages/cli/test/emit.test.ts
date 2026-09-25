@@ -40,8 +40,13 @@ describe('emitDeterministicFiles', () => {
       '.ccc/gen/card.contract.d.ts',
       '.ccc/gen/card.test.ts',
       '.ccc/gen/card.ts',
+      '.ccc/gen/main.ts',
+      '.ccc/gen/schema.sql',
+      '.ccc/gen/schema.ts',
+      '.ccc/gen/server.ts',
       '.ccc/gen/user.contract.d.ts',
       '.ccc/gen/user.ts',
+      '.ccc/gen/wiring.ts',
     ]);
     expect(await readFileOrNull(root, '.ccc/interfaces/old.d.ts')).toBeNull();
   });
@@ -55,9 +60,14 @@ describe('emitDeterministicFiles', () => {
       '.ccc/gen/card.contract.d.ts',
       '.ccc/gen/card.test.ts',
       '.ccc/gen/card.ts',
+      '.ccc/gen/main.ts',
+      '.ccc/gen/schema.sql',
+      '.ccc/gen/schema.ts',
+      '.ccc/gen/server.ts',
       '.ccc/gen/user.contract.d.ts',
       '.ccc/gen/user.test.ts',
       '.ccc/gen/user.ts',
+      '.ccc/gen/wiring.ts',
       '.ccc/interfaces/card.d.ts',
       '.ccc/interfaces/user.d.ts',
       '.ccc/package.json',
