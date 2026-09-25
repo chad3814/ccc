@@ -44,12 +44,14 @@ const requireFromTests = createRequire(import.meta.url);
 const packageName = z.object({ name: z.string().optional() });
 
 // Not every package exports ./package.json (hono doesn't), so resolve its
-// entry point and walk up to the package.json that names it.
+// entry point and walk up to the nearest package.json with a name (nested
+// ones like dist/cjs/package.json carry only "type"). The name may differ
+// from the import name: @ccc/runtime is an alias for @chchco/runtime.
 async function packageRoot(name: string): Promise<string> {
   let dir = path.dirname(requireFromTests.resolve(name));
   for (;;) {
     const text = await readFile(path.join(dir, 'package.json'), 'utf8').catch(() => null);
-    if (text !== null && packageName.parse(JSON.parse(text)).name === name) {
+    if (text !== null && packageName.parse(JSON.parse(text)).name !== undefined) {
       return dir;
     }
     const parent = path.dirname(dir);

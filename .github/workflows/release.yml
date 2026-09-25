@@ -1,0 +1,65 @@
+name: Release
+
+# Runs after CI passes on a push to main. Every run packs both packages and
+# uploads the tarballs; a package is published only when its package.json
+# version is not on npm yet. Publishing authenticates with npm trusted
+# publishing (OIDC), so no token is stored in the repo.
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: write # push release tags
+  id-token: write # npm trusted publishing
+
+jobs:
+  release:
+    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      # pnpm pack rewrites workspace: dependencies to real versions.
+      - run: pnpm --filter @chchco/runtime --filter @chchco/cli pack --pack-destination "$RUNNER_TEMP/packages"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: packages-${{ github.event.workflow_run.head_sha }}
+          path: ${{ runner.temp }}/packages/*.tgz
+      # Runtime first: the CLI depends on its exact version.
+      - name: Publish new versions
+        env:
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          for dir in packages/runtime packages/cli; do
+            name=$(node -p "require('./$dir/package.json').name")
+            version=$(node -p "require('./$dir/package.json').version")
+            if npm view "$name@$version" version > /dev/null 2>&1; then
+              echo "$name@$version is already on npm; skipping"
+              continue
+            fi
+            tarball="$RUNNER_TEMP/packages/$(echo "${name#@}" | tr / -)-$version.tgz"
+            npm publish "$tarball" --access public
+            tag="${dir#packages/}-v$version"
+            if git ls-remote --exit-code --tags origin "refs/tags/$tag" > /dev/null; then
+              echo "tag $tag already exists"
+            else
+              git tag -a "$tag" -m "$name@$version" "$HEAD_SHA"
+              git push origin "refs/tags/$tag"
+            fi
+          done

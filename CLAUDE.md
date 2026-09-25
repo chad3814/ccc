@@ -6,7 +6,7 @@ Design: `docs/superpowers/specs/2026-09-24-ccc-design.md`. Schema reference: `do
 ## Commands
 - `pnpm install`: install (pnpm only, never npm; enable with `corepack enable pnpm`)
 - `pnpm verify`: lint + build + typecheck + test; must pass before any commit (the CLI resolves `@ccc/runtime` from `packages/runtime/dist`, so build comes first)
-- `pnpm --filter @ccc/cli exec vitest run <pattern>`: run a subset of CLI tests (run `pnpm build` first)
+- `pnpm --filter @chchco/cli exec vitest run <pattern>`: run a subset of CLI tests (run `pnpm build` first)
 
 ## Conventions
 - TypeScript strict; never write `any` or `unknown` (validate with zod)
@@ -17,4 +17,4 @@ Design: `docs/superpowers/specs/2026-09-24-ccc-design.md`. Schema reference: `do
 - Tests live in `packages/*/test/`
 - Tests never call the Claude API; use `test/fake-generator.ts` and `test/pipeline-fixture.ts`
 - Build-pipeline tests run the real tsc/oxlint/Vitest toolchain
-- `pnpm --filter @ccc/cli test:live` builds a concept with the real API (costs money; not part of `pnpm verify`)
+- `pnpm --filter @chchco/cli test:live` builds a concept with the real API (costs money; not part of `pnpm verify`)

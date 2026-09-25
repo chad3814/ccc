@@ -6,7 +6,7 @@ import { writeProject } from '../test/helpers.js';
 import { PIPELINE_FILES } from '../test/pipeline-fixture.js';
 
 // Spends real money: builds the card concept with Claude. Run only with
-// `pnpm --filter @ccc/cli test:live`, credentials supplied by the SDK
+// `pnpm --filter @chchco/cli test:live`, credentials supplied by the SDK
 // (ANTHROPIC_API_KEY, e.g. via `op run`, or an `ant auth login` profile).
 describe('live build', () => {
   it('builds a real concept with Claude', async () => {

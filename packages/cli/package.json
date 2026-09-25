@@ -1,7 +1,23 @@
 {
-  "name": "@ccc/cli",
+  "name": "@chchco/cli",
   "version": "0.1.0",
-  "private": true,
+  "description": "Compiles concept models into tested TypeScript",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/chad3814/ccc.git",
+    "directory": "packages/cli"
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "files": [
+    "dist",
+    "prompts"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "type": "module",
   "bin": {
     "ccc": "./dist/bin.js"
@@ -14,7 +30,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.128.0",
-    "@ccc/runtime": "workspace:*",
+    "@ccc/runtime": "workspace:@chchco/runtime@*",
     "@typescript/typescript6": "^6.0.2",
     "commander": "^15.0.0",
     "oxlint": "^1.85.0",

@@ -173,7 +173,7 @@ importers:
   examples/card-game:
     dependencies:
       '@ccc/runtime':
-        specifier: workspace:*
+        specifier: workspace:@chchco/runtime@*
         version: link:../../packages/runtime
       '@hono/node-server':
         specifier: ^2.1.1
@@ -188,7 +188,7 @@ importers:
         specifier: ^4.6.5
         version: 4.6.5
     devDependencies:
-      '@ccc/cli':
+      '@chchco/cli':
         specifier: workspace:*
         version: link:../../packages/cli
       tsx:
@@ -201,7 +201,7 @@ importers:
         specifier: ^0.128.0
         version: 0.128.0(zod@4.6.5)
       '@ccc/runtime':
-        specifier: workspace:*
+        specifier: workspace:@chchco/runtime@*
         version: link:../runtime
       '@typescript/typescript6':
         specifier: ^6.0.2
