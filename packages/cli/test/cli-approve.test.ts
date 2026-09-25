@@ -139,6 +139,18 @@ describe('ccc approve / verify', () => {
     expect(cap.out()).toContain('  shared code outside the tests changed; press f to see the whole file');
   });
 
+  it('refuses tests generated for examples that have changed since', async () => {
+    const root = await copy();
+    const conceptFile = path.join(root, 'concepts/card.md');
+    await writeFile(conceptFile, (await readFile(conceptFile, 'utf8')).replace('→ true', '→ true (same rank and suit)'));
+    const cap = capture(root);
+    expect(await main(['approve', '--yes'], cap.io, services)).toBe(1);
+    expect(cap.out()).toContain('card changed since these tests were generated; run ccc build (or ccc tests card) first');
+    expect(cap.out().trimEnd().split('\n').at(-1)).toBe('approved 3 of 4');
+    const { manifest } = await readManifest(root);
+    expect(manifest.concepts.card?.approvedTestHash).toBeNull();
+  });
+
   it('verify exits 1 with diagnostics when something is wrong', async () => {
     const root = await copy();
     const cap = capture(root);

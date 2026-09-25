@@ -176,6 +176,10 @@ async function approveCommand(root: string, io: Io, options: ApproveOptions): Pr
   }
   const chosen: PendingApproval[] = [];
   for (const item of pending) {
+    if (item.stale) {
+      io.stdout(`\n${item.id} changed since these tests were generated; run ccc build (or ccc tests ${item.id}) first\n`);
+      continue;
+    }
     io.stdout(`\n${await describePending(item, options.full)}\n`);
     if (item.edited) {
       io.stdout('this file was edited after generation; regenerate it with ccc tests instead\n');

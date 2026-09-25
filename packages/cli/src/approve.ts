@@ -2,9 +2,12 @@ import { readFileOrNull } from './fsutil.js';
 import { sha256 } from './hash.js';
 import type { ConceptId } from './ids.js';
 import { testPath } from './layout.js';
+import { collectExports } from './interfaces.js';
+import { testKey } from './keys.js';
 import { loadProject } from './load.js';
 import type { Manifest } from './manifest.js';
 import { sharedCode, testCases, type TestCase } from './testsummary.js';
+import { loadVersions } from './versions.js';
 
 export interface PendingApproval {
   id: ConceptId;
@@ -13,6 +16,9 @@ export interface PendingApproval {
   edited: boolean;
   // The concept's examples, or null when the concept no longer exists.
   examples: readonly string[] | null;
+  // The concept changed since these tests were generated, so they may be
+  // for examples that no longer exist; they must be regenerated first.
+  stale: boolean;
   // What the previous approval recorded per test ({} if none).
   approved: Readonly<Record<string, string>>;
 }
@@ -107,6 +113,8 @@ export async function sharedCodeChanged(source: string, approved: Readonly<Recor
 
 export async function pendingApprovals(root: string, manifest: Manifest, only?: ConceptId): Promise<PendingApproval[]> {
   const { project } = await loadProject(root);
+  const exportsByConcept = collectExports(project);
+  const versions = await loadVersions();
   const pending: PendingApproval[] = [];
   for (const [id, entry] of Object.entries(manifest.concepts).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))) {
     if ((only !== undefined && id !== only) || entry.testFileHash === null || entry.approvedTestHash === entry.testFileHash) {
@@ -114,12 +122,15 @@ export async function pendingApprovals(root: string, manifest: Manifest, only?: 
     }
     const file = testPath(id);
     const source = (await readFileOrNull(root, file)) ?? '';
+    const concept = project.concepts.get(id);
+    const stale = concept === undefined || (await testKey(concept, project, exportsByConcept, versions)) !== entry.testKey;
     pending.push({
       id,
       file,
       source,
       edited: (await sha256(source)) !== entry.testFileHash,
-      examples: project.concepts.get(id)?.examples ?? null,
+      examples: concept?.examples ?? null,
+      stale,
       approved: entry.approvedTests,
     });
   }
@@ -127,12 +138,12 @@ export async function pendingApprovals(root: string, manifest: Manifest, only?: 
 }
 
 // Approval pins the generated test file's hash and records each test
-// against its example; a file edited since generation is never approved
-// (regenerate it instead).
+// against its example. A file edited since generation, or generated for a
+// concept that has changed since, is never approved (regenerate it instead).
 export async function approve(manifest: Manifest, pending: readonly PendingApproval[]): Promise<void> {
   for (const item of pending) {
     const entry = manifest.concepts[item.id];
-    if (entry !== undefined && !item.edited) {
+    if (entry !== undefined && !item.edited && !item.stale) {
       entry.approvedTestHash = entry.testFileHash;
       entry.approvedTests = item.examples === null ? {} : await approvedTestsOf(item.examples, item.source);
     }
