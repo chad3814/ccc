@@ -1,0 +1,25 @@
+{
+  "name": "@ccc/example-card-game",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "ccc check",
+    "generate": "ccc build",
+    "approve": "ccc approve",
+    "verify-generated": "ccc verify",
+    "stats": "ccc stats",
+    "smoke": "tsx scripts/smoke.ts",
+    "serve": "tsx .ccc/gen/main.ts"
+  },
+  "dependencies": {
+    "@ccc/runtime": "workspace:*",
+    "@hono/node-server": "^2.1.1",
+    "hono": "^4.13.9",
+    "pg": "^8.23.0",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@ccc/cli": "workspace:*",
+    "tsx": "^4.23.15"
+  }
+}

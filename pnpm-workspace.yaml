@@ -1,4 +1,7 @@
 packages:
   - packages/*
+  - examples/*
+allowBuilds:
+  esbuild: false
 minimumReleaseAgeExclude:
   - hono@4.13.9
