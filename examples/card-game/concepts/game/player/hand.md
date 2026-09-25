@@ -2,8 +2,9 @@
 kind: collection
 of: card
 interface: |
-  export class DuplicateCard extends Error {}
-  export class CardNotInHand extends Error {}
+  import type { Conflict } from '@ccc/runtime';
+  export class DuplicateCard extends Conflict {}
+  export class CardNotInHand extends Conflict {}
   export class Hand {
     constructor(cards?: readonly Card[]);
     add(card: Card): void;

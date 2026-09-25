@@ -6,7 +6,7 @@ Generated services use `@ccc/runtime`, a small hand-written library, and are ass
 
 | Kind | Must export | Notes |
 |---|---|---|
-| `store` | class named after the concept (`game-store` → `GameStore`) with `constructor(db: Database)` | `## Schema` holds a ```` ```sql ```` block; all stores' SQL is combined into `.ccc/gen/schema.sql` |
+| `store` | class named after the concept (`game-store` → `GameStore`) with `constructor(db: Database)` | `## Schema` holds a ```` ```sql ```` block; all stores' and auth concepts' SQL is combined into `.ccc/gen/schema.sql` |
 | `auth` | class with `constructor(db: Database)` and `authenticate(request): Promise<Identity \| null>` | |
 | `endpoint` | `createHandler(deps): (request: Request) => Promise<Response>` | `deps` keys are `db` plus the camelCase ids of adapters (`gameStore`, `auth`) |
 
@@ -16,7 +16,7 @@ Interfaces may write `import type { Database } from '@ccc/runtime'`. That is the
 
 | File | Purpose |
 |---|---|
-| `.ccc/gen/schema.sql`, `schema.ts` | Every store's tables, in dependency order (`schemaSql` for tests) |
+| `.ccc/gen/schema.sql`, `schema.ts` | Every store's and auth concept's tables, in dependency order (`schemaSql` for tests) |
 | `.ccc/gen/wiring.ts` | Patches each sync's trigger method so the handler runs after it |
 | `.ccc/gen/server.ts` | `createApp(db, { endpoints? })`: builds adapters, binds them, routes requests to endpoints |
 | `.ccc/gen/main.ts` | Node entry: `DATABASE_URL=… PORT=3000 tsx .ccc/gen/main.ts` (needs `pg` and `@hono/node-server`) |

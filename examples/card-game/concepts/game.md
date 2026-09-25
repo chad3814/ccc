@@ -2,12 +2,13 @@
 kind: aggregate
 uses: [card, user]
 interface: |
-  export class TableNotFull extends Error {}
-  export class AlreadyDealt extends Error {}
-  export class GameNotStarted extends Error {}
-  export class GameFinished extends Error {}
-  export class NotYourTurn extends Error {}
-  export class NotSeated extends Error {}
+  import type { Conflict } from '@ccc/runtime';
+  export class TableNotFull extends Conflict {}
+  export class AlreadyDealt extends Conflict {}
+  export class GameNotStarted extends Conflict {}
+  export class GameFinished extends Conflict {}
+  export class NotYourTurn extends Conflict {}
+  export class NotSeated extends Conflict {}
   export type GameStatus = 'waiting' | 'playing' | 'finished';
   export interface PlayResult {
     readonly trickComplete: boolean;
@@ -78,18 +79,21 @@ One table of High Card: players join, each is dealt a hand, and they play tricks
 - When every player has played, the card that beats all others (card.beats) wins the trick: its player scores a point, the table clears, and that player leads the next trick.
 - When the last trick completes the game is "finished". The winner has the most points, and ties go to the earliest-seated player. Any play before dealing throws GameNotStarted; any play after the end throws GameFinished.
 - view(viewer) shows only the viewer's own hand; other players appear as card counts and points. The table lists the current trick's plays in order.
+- view(viewer) never throws: a viewer who isn't seated sees an empty hand, and everything else as a player would.
 - toState() captures everything needed to continue the game; fromState(toState()) restores an identical game. The leader field is the seat index of the current trick's leader.
+- fromState builds Players from the seated players (new Players(seats, seated)); it never calls join.
 
 ## Examples
 - a new Game("g1", 2, 7) → status() is "waiting", turn() is null, and HAND_SIZE is 5
 - given a 2-seat game that two users joined through players.join, deal() → each player's hand holds 5 cards, status() is "playing", and turn() is the first user who joined
-- deal() on a 2-seat game with one player → throws TableNotFull; deal() a second time → throws AlreadyDealt
+- deal() on a 2-seat game with one player → throws TableNotFull; given a full 2-seat game that has been dealt, deal() again → throws AlreadyDealt
 - play() before dealing → throws GameNotStarted; play() by the player whose turn it isn't → throws NotYourTurn; play() by a user who isn't seated → throws NotSeated
 - given a dealt game, play(the player whose turn it is, a card that isn't in their hand) → throws CardNotInHand
 - given a dealt 2-player game, after both play a card from their hand, the player whose card beats the other's scores 1 point; the second play's result has trickComplete true and that trickWinner; the table is empty; and turn() is the trick winner
 - given a dealt 2-player game, after 5 complete tricks (each player plays in turn), status() is "finished", winner() has the most points (the earlier-seated player on a tie), the final result has finished true with the same winner, and another play throws GameFinished
 - Game.fromState(game.toState()) of a dealt game with one card played → view(each player) equals the original game's view(each player)
 - view(first player) of a dealt game → hand lists the first player's 5 cards, and players lists both players with cards 5 and points 0
+- view(a user who isn't seated) of a new 2-seat game → hand is [], players is [], turn is null, and status is "waiting"
 
 ## Decisions
 - Seeded shuffles keep games reproducible and testable; the endpoint picks a random seed per game.

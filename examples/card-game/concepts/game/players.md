@@ -3,8 +3,9 @@ kind: collection
 of: game.player
 uses: [user]
 interface: |
-  export class TableFull extends Error {}
-  export class AlreadySeated extends Error {}
+  import type { Conflict } from '@ccc/runtime';
+  export class TableFull extends Conflict {}
+  export class AlreadySeated extends Conflict {}
   export class Players {
     constructor(seats: number, seated?: readonly Player[]);
     join(user: UserId): Player;

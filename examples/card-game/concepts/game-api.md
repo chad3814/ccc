@@ -21,7 +21,7 @@ The HTTP API for playing High Card.
 - POST /games/:id/play with JSON {"rank": Rank, "suit": Suit} → 200 {"result": PlayResult, "view": GameView}. Run the play inside `withScope({ 'game': game }, ...)` so the record-winner sync can run, then save.
 - GET /games/:id → 200 with the caller's GameView.
 - GET /leaderboard → 200 with the top 10 standings as [{"userId": string, "wins": number}].
-- An unknown game id → 404. TableFull, AlreadySeated, AlreadyDealt, TableNotFull, GameNotStarted, GameFinished, NotYourTurn, NotSeated, and CardNotInHand → 409 {"error": string}. An invalid body → 400 {"error": string}.
+- An unknown game id → 404. The game's errors (TableFull, AlreadySeated, AlreadyDealt, TableNotFull, GameNotStarted, GameFinished, NotYourTurn, NotSeated, CardNotInHand) all extend Conflict from '@ccc/runtime', so answer any DomainError with errorResponse(err) (409 {"error": string}); join with game.players.join(userId). An invalid body or malformed JSON → 400 {"error": string}. Any other error is a 500.
 - Every other route is left to other endpoints (unmatched).
 
 ## Examples

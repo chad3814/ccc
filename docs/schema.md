@@ -63,7 +63,7 @@ The first four are **domain** kinds. `store`, `endpoint`, and `auth` are **adapt
 
 ## Sections
 
-- `## Intent` (required), `## Rules`, `## Examples`, `## Decisions`. Stores also require `## Schema`.
+- `## Intent` (required), `## Rules`, `## Examples`, `## Decisions`. Stores also require `## Schema`; auth concepts may include one.
 - Any other `##` heading is an error; that catches typos like `## Example`.
 - `## ...` lines inside code fences are ignored.
 - `ccc check` warns when `## Examples` is missing or empty; `ccc build` will require it.
