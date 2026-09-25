@@ -3,6 +3,7 @@ import { parentOf, parseActionRef, type ConceptId } from './ids.js';
 import type { ExportInfo } from './interfaces.js';
 import type { Project } from './load.js';
 import type { Concept } from './parse.js';
+import { topologicalLevels } from './order.js';
 import { primaryClassName } from './syncs.js';
 
 // Top-level names the build writes into .ccc/gen itself.
@@ -66,4 +67,16 @@ export function checkAdapters(project: Project, exportsByConcept: ReadonlyMap<Co
     }
   }
   return diagnostics;
+}
+
+export function combinedSchema(project: Project): string {
+  const parts: string[] = [];
+  for (const id of topologicalLevels(project).flat()) {
+    const concept = project.concepts.get(id);
+    const sql = concept?.frontmatter.kind === 'store' ? storeSchemaSql(concept) : null;
+    if (sql !== null) {
+      parts.push(`-- ${id}\n${sql}\n`);
+    }
+  }
+  return parts.join('\n');
 }

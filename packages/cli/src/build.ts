@@ -15,11 +15,14 @@ import type { Generator } from './llm.js';
 import type { Project } from './load.js';
 import { entryFor, hashFiles, listCccFiles, readManifest, writeManifest, type Manifest } from './manifest.js';
 import type { Concept } from './parse.js';
+import { dependencyClosure, topologicalLevels } from './order.js';
 import { mapPool } from './pool.js';
 import { isHandwritten } from './schema.js';
 import { generateTests, type GenerateContext } from './testgen.js';
 import { runTests } from './toolchain.js';
 import { loadVersions, type Versions } from './versions.js';
+
+export { dependencyClosure, topologicalLevels } from './order.js';
 
 export interface BuildOptions {
   root: string;
@@ -48,49 +51,6 @@ export interface BuildResult {
 
 function compareIds(a: string, b: string): number {
   return a < b ? -1 : a > b ? 1 : 0;
-}
-
-export function topologicalLevels(project: Project): ConceptId[][] {
-  const level = new Map<ConceptId, number>();
-  const visit = (id: ConceptId): number => {
-    const known = level.get(id);
-    if (known !== undefined) {
-      return known;
-    }
-    const concept = project.concepts.get(id);
-    if (concept === undefined) {
-      return -1;
-    }
-    level.set(id, 0);
-    const value = Math.max(-1, ...dependenciesOf(concept, project).map(visit)) + 1;
-    level.set(id, value);
-    return value;
-  };
-  for (const id of project.concepts.keys()) {
-    visit(id);
-  }
-  const levels: ConceptId[][] = [];
-  for (const [id, value] of [...level].sort(([a], [b]) => compareIds(a, b))) {
-    (levels[value] ??= []).push(id);
-  }
-  return levels;
-}
-
-export function dependencyClosure(project: Project, id: ConceptId): Set<ConceptId> {
-  const seen = new Set<ConceptId>();
-  const queue = [id];
-  while (queue.length > 0) {
-    const next = queue.pop();
-    if (next === undefined || seen.has(next)) {
-      continue;
-    }
-    seen.add(next);
-    const concept = project.concepts.get(next);
-    if (concept !== undefined) {
-      queue.push(...dependenciesOf(concept, project));
-    }
-  }
-  return seen;
 }
 
 interface PlanState {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { checkAdapters, storeSchemaSql } from '../src/adapters.js';
+import { checkAdapters, combinedSchema, storeSchemaSql } from '../src/adapters.js';
 import { collectExports } from '../src/interfaces.js';
 import { concept, projectFrom } from './helpers.js';
 
@@ -68,5 +68,23 @@ describe('checkAdapters', () => {
         'deal.md': concept('kind: sync\nwhen: card#card\nthen: [card#other]'),
       }),
     ).toEqual(["concepts/deal.md: card#card: sync triggers must be methods of class Card; exported functions can't be wired"]);
+  });
+});
+
+
+describe('combinedSchema', () => {
+  it('joins store schemas in dependency order', () => {
+    const project = projectFrom({
+      'tally.md': TALLY,
+      'tally-store.md': STORE,
+      'audit.md': concept(
+        'kind: store\npersists: tally\nuses: [tally-store]\ninterface: |\n  export class Audit {}',
+        storeBody('```sql\ncreate table audit (n integer);\n```'),
+      ),
+    });
+    expect(combinedSchema(project)).toBe(
+      '-- tally-store\ncreate table tallies (id text primary key);\n\n-- audit\ncreate table audit (n integer);\n',
+    );
+    expect(combinedSchema(projectFrom({ 'tally.md': TALLY }))).toBe('');
   });
 });
