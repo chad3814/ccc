@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import type { CccConfig } from '@ccc/runtime';
+import type { z } from 'zod';
 import { DEFAULT_LADDER, configSchema, loadConfig, modelTiers } from '../src/config.js';
 import { writeProject } from './helpers.js';
 
@@ -91,5 +93,15 @@ describe('loadConfig', () => {
       expect(modelTiers(config, 'impl')).toEqual(['b', 'c']);
       expect(modelTiers(config, 'tests')).toEqual(['a']);
     });
+  });
+});
+
+// defineConfig's parameter type must accept exactly what the schema accepts.
+describe('CccConfig', () => {
+  it('matches the config schema input both ways', () => {
+    const fromRuntime = (config: CccConfig): z.input<typeof configSchema> => config;
+    const toRuntime = (config: z.input<typeof configSchema>): CccConfig => config;
+    const sample: CccConfig = { models: { impl: { start: 'claude-haiku-4-5', cap: 'claude-opus-5' }, tests: 'claude-opus-5' }, escalateAfter: 2 };
+    expect(configSchema.safeParse(toRuntime(fromRuntime(sample))).success).toBe(true);
   });
 });

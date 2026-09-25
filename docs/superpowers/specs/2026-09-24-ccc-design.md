@@ -206,14 +206,19 @@ Generated output is committed, so fresh clones and CI never regenerate.
 
 ```ts
 export default defineConfig({
-  models: { impl: 'claude-opus-5', tests: 'claude-opus-5' },
+  models: {
+    impl: { start: 'claude-haiku-4-5', cap: 'claude-opus-5' },
+    tests: { start: 'claude-sonnet-5', cap: 'claude-opus-5' },
+  },
+  ladder: ['claude-haiku-4-5', 'claude-sonnet-5', 'claude-opus-5', 'claude-fable-5-1'],
+  escalateAfter: 2,
   maxAttempts: 3,
   testMaxAttempts: 3,
   concurrency: 4,
 });
 ```
 
-Every setting is optional. `defineConfig` comes from `@ccc/runtime` (Plan 3); a plain object default export works too.
+Every setting is optional. A model may also be a plain name (`impl: 'claude-opus-5'`), which fixes that model and never escalates. `start` and `cap` must be on the ladder, with `start` at or below `cap`. `defineConfig` comes from `@ccc/runtime` (Plan 3); a plain object default export works too.
 
 ### 3.2 Cache keys
 
@@ -221,13 +226,13 @@ A concept's key includes its dependencies' **interfaces**, never their implement
 
 | Artifact | Key = SHA-256 of |
 |---|---|
-| Tests | normalized concept file + own interface + interfaces of all transitive dependencies + test prompt version + test model + runtime version |
-| Implementation | normalized concept file + dependency interfaces + current test file hash + impl prompt version + impl model + runtime version |
-| Sync handler | normalized sync file + `when`/`then` interfaces + current test file hash + prompt version + model + runtime version |
+| Tests | normalized concept file + own interface + interfaces of all transitive dependencies + runtime version |
+| Implementation | normalized concept file + dependency interfaces + current test file hash + runtime version |
+| Sync handler | normalized sync file + `when`/`then` interfaces + current test file hash + runtime version |
 
 - **Normalization:** frontmatter re-serialized with sorted keys; Markdown trailing whitespace trimmed and line endings normalized. Formatting-only edits do not invalidate.
-- **Prompt version** = hash of the prompt template file shipped with ccc. **Runtime version** = `@ccc/runtime` package version.
-- Changing a model in config invalidates everything it produced; model upgrades are explicit, visible rebuilds.
+- **Runtime version** = `@ccc/runtime` package version.
+- **Models and prompts are not in the key.** Generated code is accepted because it passes its approved tests, not because a particular model or prompt wrote it; output is expected to differ between generations. Changing models, the ladder, or ccc's prompts leaves current code alone. `ccc build --fresh [id]` regenerates implementations on purpose, and `ccc tests --fresh [id]` regenerates tests (which then need approval again).
 
 ### 3.3 Manifest
 
@@ -235,7 +240,7 @@ A concept's key includes its dependencies' **interfaces**, never their implement
 
 - `testKey`, `testFileHash`, `approvedTestHash` (null if pending)
 - `implKey` (null for handwritten)
-- `history`: one entry per generation: artifact (`tests` | `impl`), timestamp, model, attempts, input/output tokens, cost (USD), duration, outcome (`passed` | `failed`)
+- `history`: one entry per generation: artifact (`tests` | `impl`), timestamp, model (of the last attempt), attempts, input/output tokens, cost (USD, each turn priced at the model that ran it), duration, outcome (`passed` | `failed`), escalations (ladder steps climbed)
 
 A top-level `files` map records the hash of every file under `.ccc/gen`, `.ccc/interfaces`, and `.ccc/conformance`, plus `.ccc/package.json` and `.ccc/.gitignore`. Build uses it to notice edited or missing modules; verify uses it to name them. The manifest is written atomically (write a temp file, then rename).
 
@@ -256,11 +261,11 @@ A top-level `files` map records the hash of every file under `.ccc/gen`, `.ccc/i
 | Command | Does | Calls LLM |
 |---|---|---|
 | `ccc check` | Validation (2.8) | no |
-| `ccc build [id] [--dry-run]` | Pipeline (3.4) | yes |
-| `ccc tests [id]` | Stage 3 only | yes |
+| `ccc build [id] [--dry-run] [--fresh]` | Pipeline (3.4); `--fresh` regenerates implementations (of `id`, or all) even when current, keeping tests | yes |
+| `ccc tests [id] [--fresh]` | Stage 3 only; `--fresh` regenerates tests even when current | yes |
 | `ccc approve [id]` | Shows each pending test file (diff against last approved), records approval on confirmation | no |
 | `ccc verify` | CI gate (6) | no |
-| `ccc stats` | First-attempt pass rate, mean attempts, cost per concept and per build, from manifest history | no |
+| `ccc stats` | First-attempt pass rate, mean attempts, escalations, cost per concept and by final model, from manifest history | no |
 | `ccc regen --compare <id>` | Regenerates the implementation ignoring cache into a temp dir; reports approved-test pass/fail and diff size vs committed; does not write | yes |
 | `ccc db reset` | Drops and recreates the dev database from `schema.sql` using `DATABASE_URL` | no |
 
@@ -307,7 +312,8 @@ Node built-ins are not on any list, so no kind can import them. oxlint enforces 
 2. Write it in place at `.ccc/gen/<id>.ts`. Run `tsc` on the module, its conformance file, and its tests (only errors in those files count); run oxlint on the module; run the concept's tests. Skipped tests count as failures.
 3. On failure, put the previous module back immediately, then send the trimmed problems (first 50) back in the same conversation and retry, up to `maxAttempts`.
 4. On success, keep the file; the manifest records its hash.
-5. On exhaustion, or on a generator error (the SDK has already retried transient failures), the concept fails with the last problems. The last good version stays; dependents are skipped for this build; unrelated concepts continue.
+5. **Escalation.** Each artifact's attempts climb the ladder from its `start` model: after every `escalateAfter` failed attempts, the next attempt runs on the next stronger model, up to `cap`. The conversation continues, so the stronger model sees every earlier attempt and its problems; request settings (thinking, fallbacks) follow the model of each turn. `maxAttempts` counts attempts across all models. Every generation starts again at `start`; nothing is remembered between builds. Test generation escalates the same way.
+6. On exhaustion, or on a generator error (the SDK has already retried transient failures), the concept fails with the last problems. The last good version stays; dependents are skipped for this build; unrelated concepts continue.
 
 The manifest records hashes only for files the build itself wrote, so a hand edit anywhere else stays visible to the next build and to `verify`. Entries for deleted concepts are dropped.
 
