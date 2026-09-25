@@ -1,6 +1,6 @@
 # Concept schema reference
 
-A ccc project is a directory with a `concepts/` folder. Every `.md` file under it is one concept. Concepts are the source of truth: you edit them, and ccc generates the code.
+A ccc project is a directory with a `concepts/` folder. Every `.md` file under it is one concept. Concepts are the source of truth: you edit them, and ccc generates the code. For advice on writing concepts that generate well, see [writing-concepts.md](writing-concepts.md).
 
 ## Files, IDs, and containment
 

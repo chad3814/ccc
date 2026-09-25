@@ -5,7 +5,7 @@ Write software as a structured **concept model** (Markdown + YAML under `concept
 Status: research prototype. The full pipeline works; the card-game example in `examples/card-game` is modeled and checks clean, and generating it needs Claude credentials (see its README).
 
 - Design: [docs/design.md](docs/design.md)
-- Writing concepts: [docs/schema.md](docs/schema.md)
+- Writing concepts: [docs/writing-concepts.md](docs/writing-concepts.md) (guide), [docs/schema.md](docs/schema.md) (reference)
 - Building and CI: [docs/building.md](docs/building.md)
 - Runtime and adapters: [docs/runtime.md](docs/runtime.md)
 - Example: [examples/card-game](examples/card-game)

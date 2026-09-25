@@ -1,6 +1,6 @@
 # Design
 
-Why ccc works the way it does, and how its pieces fit together. For the details of each piece, see [schema.md](schema.md) (writing concepts), [building.md](building.md) (the build, approval, and CI), and [runtime.md](runtime.md) (adapters and syncs at run time).
+Why ccc works the way it does, and how its pieces fit together. For the details of each piece, see [writing-concepts.md](writing-concepts.md) (writing concepts well), [schema.md](schema.md) (the concept format), [building.md](building.md) (the build, approval, and CI), and [runtime.md](runtime.md) (adapters and syncs at run time).
 
 ## The idea
 
