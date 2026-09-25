@@ -4,6 +4,7 @@ import { main, type Io } from '../src/cli.js';
 import { readFileOrNull } from '../src/fsutil.js';
 import { modulePath } from '../src/layout.js';
 import { runRegen } from '../src/regen.js';
+import { openPgDatabase } from '../src/dbreset.js';
 import { FakeGenerator } from './fake-generator.js';
 import { CANNED_IMPL, createPipelineProject, pipelineResponder } from './pipeline-fixture.js';
 
@@ -50,7 +51,7 @@ describe('ccc stats / regen', () => {
       out: () => out,
     };
   }
-  const services = { generator: () => new FakeGenerator(pipelineResponder()) };
+  const services = { generator: () => new FakeGenerator(pipelineResponder()), openDatabase: openPgDatabase };
 
   it('prints stats', async () => {
     const cap = capture();

@@ -4,7 +4,10 @@ import { AnthropicGenerator } from './anthropic.js';
 import { approve, pendingApprovals, type PendingApproval } from './approve.js';
 import { runBuild, type BuildResult } from './build.js';
 import { runCheck } from './check.js';
+import { SCHEMA_SQL_FILE } from './compose.js';
+import { openPgDatabase, resetDatabase, type OpenedDatabase } from './dbreset.js';
 import { formatDiagnostic, hasErrors, type Diagnostic } from './diagnostics.js';
+import { readFileOrNull } from './fsutil.js';
 import type { Generator } from './llm.js';
 import { readManifest, writeManifest } from './manifest.js';
 import { runRegen } from './regen.js';
@@ -17,13 +20,15 @@ export interface Io {
   stdout(text: string): void;
   stderr(text: string): void;
   confirm?(question: string): Promise<boolean>;
+  env?: Readonly<Record<string, string | undefined>>;
 }
 
 export interface Services {
   generator(): Generator;
+  openDatabase(url: string): Promise<OpenedDatabase>;
 }
 
-const defaultServices: Services = { generator: () => new AnthropicGenerator() };
+const defaultServices: Services = { generator: () => new AnthropicGenerator(), openDatabase: openPgDatabase };
 
 function plural(count: number, word: string): string {
   return `${count} ${word}${count === 1 ? '' : 's'}`;
@@ -153,6 +158,27 @@ async function regenCommand(root: string, io: Io, services: Services, id: string
   return result.passed ? 0 : 1;
 }
 
+async function dbResetCommand(root: string, io: Io, services: Services): Promise<number> {
+  const url = io.env?.DATABASE_URL;
+  if (url === undefined || url === '') {
+    io.stdout('error: set DATABASE_URL to the database to reset\n');
+    return 1;
+  }
+  const schema = await readFileOrNull(root, SCHEMA_SQL_FILE);
+  if (schema === null) {
+    io.stdout(`error: no ${SCHEMA_SQL_FILE}; run ccc build first\n`);
+    return 1;
+  }
+  const opened = await services.openDatabase(url);
+  try {
+    await resetDatabase(opened.db, schema);
+  } finally {
+    await opened.close();
+  }
+  io.stdout(`✓ database reset from ${SCHEMA_SQL_FILE}\n`);
+  return 0;
+}
+
 export async function main(argv: readonly string[], io: Io, services: Services = defaultServices): Promise<number> {
   let exitCode = 0;
   const rootOf = (dir: string): string => path.resolve(io.cwd, dir);
@@ -212,6 +238,15 @@ export async function main(argv: readonly string[], io: Io, services: Services =
     .option('-C, --dir <path>', 'project root', '.')
     .action(async (options: { dir: string; compare: string }) => {
       exitCode = await regenCommand(rootOf(options.dir), io, services, options.compare);
+    });
+  program
+    .command('db')
+    .description('development database commands')
+    .command('reset')
+    .description('drop everything in DATABASE_URL and apply .ccc/gen/schema.sql')
+    .option('-C, --dir <path>', 'project root', '.')
+    .action(async (options: { dir: string }) => {
+      exitCode = await dbResetCommand(rootOf(options.dir), io, services);
     });
   try {
     await program.parseAsync([...argv], { from: 'user' });

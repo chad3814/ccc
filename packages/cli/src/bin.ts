@@ -4,6 +4,7 @@ import { main, type Io } from './cli.js';
 
 const io: Io = {
   cwd: process.cwd(),
+  env: process.env,
   stdout: (text) => {
     process.stdout.write(text);
   },

@@ -4,6 +4,7 @@ import path from 'node:path';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { runBuild } from '../src/build.js';
 import { main, type Io } from '../src/cli.js';
+import { openPgDatabase } from '../src/dbreset.js';
 import { FakeGenerator } from './fake-generator.js';
 import { createPipelineProject, pipelineResponder } from './pipeline-fixture.js';
 
@@ -37,7 +38,7 @@ function capture(cwd: string, answers?: boolean[]) {
   return { io, out: () => out };
 }
 
-const services = { generator: () => new FakeGenerator(pipelineResponder()) };
+const services = { generator: () => new FakeGenerator(pipelineResponder()), openDatabase: openPgDatabase };
 
 describe('ccc approve / verify', () => {
   it('requires --yes without an interactive terminal', async () => {

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { buildSummary, main, type Io } from '../src/cli.js';
 import type { Generator } from '../src/llm.js';
+import { openPgDatabase } from '../src/dbreset.js';
 import { FakeGenerator } from './fake-generator.js';
 import { createPipelineProject, pipelineResponder } from './pipeline-fixture.js';
 
@@ -19,7 +20,10 @@ function capture(cwd: string) {
   return { io, out: () => out, err: () => err };
 }
 
-const fakeServices = (generator: Generator = new FakeGenerator(pipelineResponder())) => ({ generator: () => generator });
+const fakeServices = (generator: Generator = new FakeGenerator(pipelineResponder())) => ({
+  generator: () => generator,
+  openDatabase: openPgDatabase,
+});
 
 describe('buildSummary', () => {
   it('summarizes success and failure', () => {
@@ -86,6 +90,7 @@ describe('ccc build / tests', () => {
       generator: (): Generator => {
         throw new Error('no generator');
       },
+      openDatabase: openPgDatabase,
     };
     expect(await main(['build'], boom.io, broken)).toBe(2);
     expect(boom.err()).toBe('error: no generator\n');
