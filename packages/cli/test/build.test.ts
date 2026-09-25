@@ -6,7 +6,8 @@ import { dependencyClosure, runBuild, topologicalLevels } from '../src/build.js'
 import { fileHash, readFileOrNull, writeFileAtomic } from '../src/fsutil.js';
 import { modulePath, testPath } from '../src/layout.js';
 import { loadProject } from '../src/load.js';
-import { readManifest } from '../src/manifest.js';
+import { readManifest, writeManifest } from '../src/manifest.js';
+import { approve, pendingApprovals } from '../src/approve.js';
 import { GeneratorUnavailable } from '../src/llm.js';
 import { FakeGenerator } from './fake-generator.js';
 import { CANNED_IMPL, PIPELINE_FILES, createPipelineProject, pipelineResponder, type Overrides } from './pipeline-fixture.js';
@@ -70,6 +71,35 @@ describe('runBuild', () => {
     const { result } = await build(root);
     expect(result.ok).toBe(true);
     expect(result.generated).toEqual({ tests: ['hand'], impl: ['hand'] });
+  });
+
+  it('hands the approved tests to the test writer when a concept changes', async () => {
+    const root = await copyProject(built);
+    const { manifest } = await readManifest(root);
+    await approve(manifest, await pendingApprovals(root, manifest));
+    await writeManifest(root, manifest);
+    const hand = PIPELINE_FILES['concepts/hand.md'] ?? '';
+    await writeFileAtomic(root, 'concepts/hand.md', hand.replace('never holds the same card twice', 'never holds a card twice'));
+    const { fake, result } = await build(root);
+    expect(result.ok).toBe(true);
+    const request = fake.requests.find((r) => r.system.startsWith('You are the test writer'))?.messages[0] ?? '';
+    expect(request).toContain('## Approved tests');
+    expect(request).toContain('changing only their tags: [ex 1] (was [ex 1]), [ex 2] (was [ex 2]).');
+  });
+
+  it('writes tests from scratch when the file on disk is not approved, or with --fresh', async () => {
+    const hand = PIPELINE_FILES['concepts/hand.md'] ?? '';
+    const testRequestOf = (fake: FakeGenerator) => fake.requests.find((r) => r.system.startsWith('You are the test writer'))?.messages[0] ?? '';
+    const pending = await copyProject(built);
+    await writeFileAtomic(pending, 'concepts/hand.md', hand.replace('never holds the same card twice', 'never holds a card twice'));
+    expect(testRequestOf((await build(pending)).fake)).not.toContain('## Approved tests');
+    const approved = await copyProject(built);
+    const { manifest } = await readManifest(approved);
+    await approve(manifest, await pendingApprovals(approved, manifest));
+    await writeManifest(approved, manifest);
+    const fresh = await build(approved, {}, { only: 'hand', fresh: true, testsOnly: true });
+    expect(testRequestOf(fresh.fake)).toContain('Write the Vitest test file');
+    expect(testRequestOf(fresh.fake)).not.toContain('## Approved tests');
   });
 
   it('regenerates dependents when a dependency interface changes', async () => {

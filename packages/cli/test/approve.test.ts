@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { approvedTestsOf, reviewTests } from '../src/approve.js';
+import { approvedTestsOf, keptTests, reviewTests } from '../src/approve.js';
 
 const EXAMPLES = ['an empty hand, add(A♠) → size is 1', 'hand [A♠], add(A♠) → throws DuplicateCard', 'hand [A♠], remove(K♥) → throws CardNotInHand'];
 
@@ -51,5 +51,16 @@ describe('reviewTests', () => {
   it('reports an example with no test', async () => {
     const reviewed = await reviewTests(EXAMPLES, file(A, B), {});
     expect(reviewed[2]).toMatchObject({ example: 3, status: 'new', test: null });
+  });
+});
+
+describe('keptTests', () => {
+  it('maps each unchanged example to its test in the approved file', async () => {
+    const approved = await approvedTestsOf(EXAMPLES, file(A, B, C));
+    const examples = ['a new first example', EXAMPLES[0] ?? '', 'an edited second example', EXAMPLES[2] ?? ''];
+    expect(await keptTests(examples, file(A, B, C), approved)).toEqual([
+      { example: 2, was: 1 },
+      { example: 4, was: 3 },
+    ]);
   });
 });

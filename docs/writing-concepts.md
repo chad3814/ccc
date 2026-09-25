@@ -15,7 +15,7 @@ ccc approve                # read the tests before trusting them
 
 Build one concept at a time while you're writing it. Start with the leaves (`card`, `user`) and work up, so each concept's dependencies already exist and pass.
 
-Editing a concept regenerates its tests and implementation, and the new tests need approving again. Formatting-only edits are free: whitespace and key order don't change the cache key. A dependency's Rules and Decisions don't regenerate its dependents; only its interface does.
+Editing a concept regenerates its tests and implementation, and the new tests need approving again; the test writer keeps approved tests whose examples didn't change, so the review shows only what did. Formatting-only edits are free: whitespace and key order don't change the cache key. A dependency's Rules and Decisions don't regenerate its dependents; only its interface does.
 
 ## Choosing concepts
 

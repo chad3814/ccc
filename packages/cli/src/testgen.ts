@@ -2,7 +2,7 @@ import { mkdir, realpath, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { modelTiers, type Config } from './config.js';
 import { SCHEMA_DECLARATION, SERVER_DECLARATION } from './compose.js';
-import { testRequest } from './context.js';
+import { testRequest, type PreviousTests } from './context.js';
 import { generationLoop, type GenerationOutcome } from './generation.js';
 import { TEST_PACKAGES, checkImports, testImportsFor, transitiveDependencies } from './imports.js';
 import { emitInterfaces } from './interfaces.js';
@@ -81,13 +81,13 @@ export async function checkTestSource(ctx: GenerateContext, concept: Concept, so
   return problems.length > 0 ? problems : typecheckAgainstInterfaces(ctx, concept, source);
 }
 
-export async function generateTests(ctx: GenerateContext, concept: Concept): Promise<GenerationOutcome> {
+export async function generateTests(ctx: GenerateContext, concept: Concept, previous?: PreviousTests): Promise<GenerationOutcome> {
   return generationLoop({
     generator: ctx.generator,
     models: modelTiers(ctx.config, 'tests'),
     escalateAfter: ctx.config.escalateAfter,
     system: await readPrompt('tests'),
-    firstMessage: testRequest(concept, ctx.project, ctx.exportsByConcept, transitiveDependencies(concept, ctx.project)),
+    firstMessage: testRequest(concept, ctx.project, ctx.exportsByConcept, transitiveDependencies(concept, ctx.project), previous),
     maxAttempts: ctx.config.testMaxAttempts,
     artifact: 'tests',
     now: ctx.now,

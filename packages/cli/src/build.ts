@@ -1,5 +1,7 @@
+import { keptTests } from './approve.js';
 import { runCheck } from './check.js';
 import { loadConfig } from './config.js';
+import type { PreviousTests } from './context.js';
 import { error, hasErrors, warning, type Diagnostic } from './diagnostics.js';
 import { deterministicWrites, emitDeterministicFiles, expectedFiles } from './emit.js';
 import { fileHash, readFileOrNull, writeFileAtomic } from './fsutil.js';
@@ -101,6 +103,17 @@ async function isModuleCurrent(
   const entry = manifest.concepts[concept.id];
   const moduleHash = await fileHash(root, modulePath(concept.id));
   return entry?.implKey === key && moduleHash !== null && manifest.files[modulePath(concept.id)] === moduleHash;
+}
+
+// The test file on disk, if a person approved it, so the test writer can
+// keep what was approved instead of starting over.
+async function approvedTestsOnDisk(root: string, manifest: Manifest, concept: Concept): Promise<PreviousTests | null> {
+  const entry = manifest.concepts[concept.id];
+  const source = await readFileOrNull(root, testPath(concept.id));
+  if (entry === undefined || source === null || entry.approvedTestHash !== (await sha256(source))) {
+    return null;
+  }
+  return { source, kept: await keptTests(concept.examples, source, entry.approvedTests) };
 }
 
 async function planBuild(
@@ -289,9 +302,10 @@ export async function runBuild(options: BuildOptions): Promise<BuildResult> {
         if (concept === undefined || halt.reason !== null) {
           return;
         }
+        const previous = fresh.tests.has(concept.id) ? null : await approvedTestsOnDisk(root, manifest, concept);
         let outcome;
         try {
-          outcome = await generateTests(ctx, concept);
+          outcome = await generateTests(ctx, concept, previous ?? undefined);
         } catch (err) {
           stopOn(err instanceof Error ? err : new Error(String(err)));
           return;

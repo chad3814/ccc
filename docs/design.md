@@ -52,7 +52,8 @@ The test writer never sees an implementation. It works from the concept (Intent,
 
 - Each example bullet becomes exactly one test named `[ex N] …`, so a failing test points straight back to a bullet. A file with any other set of tags is rejected.
 - Tests must assert only what their example states, and must never assume what seeded or random setup produces.
-- **Approval is the human gate.** Generated tests start pending. Implementations can be generated against pending tests, but `ccc verify` fails until each test file is approved. The approved hash is recorded, so a changed test needs approving again.
+- **Approval is the human gate.** Generated tests start pending. Implementations can be generated against pending tests, but `ccc verify` fails until each test file is approved.
+- **Review claims, and only what changed.** Approval exists to catch a test that doesn't check what its example says, so `ccc approve` shows each example beside its test's assertions rather than whole files of setup code. Approval records a hash per test, keyed by the example's text, and regeneration gives the approved tests to the test writer to keep. After a concept edit, only the tests that actually changed need reading.
 
 ## Implementations are repaired, not trusted
 
@@ -140,7 +141,7 @@ Parameterized concept templates; mechanical checking of where invariants are pla
 ## Open questions
 
 - **Concept granularity.** Too fine becomes pseudocode; too coarse under-specifies. The card game is how we find out.
-- **Test-approval fatigue.** Tests regenerate whenever their concept changes, so every concept edit means re-approving that concept's tests. If approval becomes rubber-stamping, the human gate is worthless.
+- **Test-approval fatigue.** Every concept edit means re-approving that concept's tests. Reviewing claims instead of code, and only the tests that changed, keeps that small; if approval still becomes rubber-stamping, the human gate is worthless, and machine checks (vacuous tests, tests the implementation kept failing) may need to flag the likely problems first.
 - **Prose conditions in syncs.** If handlers often misread conditions written in prose, syncs may need a structured `where` clause.
 - **Type-checking cost.** Every attempt runs `tsc`; larger projects may need incremental builds.
 - **Generated auth code** is acceptable in a prototype and nowhere else.

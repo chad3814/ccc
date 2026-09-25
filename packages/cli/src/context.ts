@@ -1,3 +1,4 @@
+import type { KeptTest } from './approve.js';
 import { dependenciesOf } from './graph.js';
 import { parseActionRef, type ConceptId } from './ids.js';
 import { PACKAGES_BY_KIND, transitiveDependencies } from './imports.js';
@@ -92,11 +93,40 @@ function syncsSection(concept: Concept, project: Project, exportsByConcept: Expo
 
 // The test writer sees the whole concept (the same specification the
 // implementer gets), but never an implementation (spec §4.4).
+// The approved test file, when regenerating over one, and which of its
+// tests still match an unchanged example.
+export interface PreviousTests {
+  source: string;
+  kept: readonly KeptTest[];
+}
+
+function approvedTestsSection(concept: Concept, previous: PreviousTests): string[] {
+  const keptExamples = new Set(previous.kept.map((k) => k.example));
+  const others = concept.examples.map((_, index) => index + 1).filter((n) => !keptExamples.has(n));
+  const plan =
+    previous.kept.length === 0
+      ? ['- Reuse the test for every example that is unchanged, exactly as written.']
+      : [
+          `- Copy these tests exactly, changing only their tags: ${previous.kept.map((k) => `[ex ${k.example}] (was [ex ${k.was}])`).join(', ')}.`,
+          ...(others.length === 0 ? [] : [`- Write the other tests new: ${others.map((n) => `[ex ${n}]`).join(', ')}.`]),
+        ];
+  return [
+    '## Approved tests',
+    'A person reviewed and approved the current test file for this concept (below). Keep what they approved:',
+    ...plan,
+    '- Keep the shared setup (imports, helpers) unless a new test needs something different.',
+    'If a change to the Rules means a kept test no longer holds, change that test; it will be reviewed again.',
+    fence(previous.source),
+    '',
+  ];
+}
+
 export function testRequest(
   concept: Concept,
   project: Project,
   exportsByConcept: ExportsByConcept,
   testDependencies: readonly ConceptId[],
+  previous?: PreviousTests,
 ): string {
   return [
     `Write the Vitest test file for concept \`${concept.id}\` (${concept.frontmatter.kind}).`,
@@ -120,6 +150,7 @@ export function testRequest(
     'Use the rest of the concept (Rules, Decisions, Schema) as context for setting up and checking each example, but assert only what the example states.',
     ...concept.examples.map((example, index) => `[ex ${index + 1}] ${example}`),
     '',
+    ...(previous === undefined ? [] : approvedTestsSection(concept, previous)),
     ...testSupportSection(concept, project),
     ...dependencySection(dependencyViews(concept, project, exportsByConcept, testDependencies)),
     '',

@@ -25,6 +25,20 @@ describe('testRequest', () => {
     expect(request).toContain('export class Hand {');
     expect(request).toContain('## Rules\n- no duplicates');
     expect(request).toContain('Use the rest of the concept (Rules, Decisions, Schema) as context');
+    expect(request).not.toContain('## Approved tests');
+  });
+
+  it('passes the approved tests, naming which to keep and which to write', () => {
+    const request = testRequest(hand, project, exportsByConcept, ['card'], { source: 'APPROVED FILE', kept: [{ example: 1, was: 2 }] });
+    expect(request).toContain('## Approved tests');
+    expect(request).toContain('Copy these tests exactly, changing only their tags: [ex 1] (was [ex 2]).');
+    expect(request).toContain('Write the other tests new: [ex 2].');
+    expect(request).toContain('```ts\nAPPROVED FILE\n```');
+  });
+
+  it('asks to reuse unchanged examples\' tests when the approval did not record which match', () => {
+    const request = testRequest(hand, project, exportsByConcept, ['card'], { source: 'APPROVED FILE', kept: [] });
+    expect(request).toContain('Reuse the test for every example that is unchanged, exactly as written.');
   });
 });
 

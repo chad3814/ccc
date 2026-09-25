@@ -8,7 +8,7 @@
 ccc check                       # validate concepts (no LLM)
 ccc build --dry-run             # show what would be generated
 op run -- ccc build             # generate; needs ANTHROPIC_API_KEY or `ant auth login`
-ccc approve                     # read each new test file and approve it
+ccc approve                     # review each concept's examples beside their tests' assertions
 ccc verify                      # CI gate: current, approved, passing (no LLM)
 git add concepts .ccc && git commit
 ```
@@ -32,13 +32,31 @@ Never edit these files. `ccc verify` names any file that changed since the build
 
 ## When things regenerate
 
-- **Tests** regenerate when anything in the concept changes, or a dependency's interface changes. New tests need approval again.
+- **Tests** regenerate when anything in the concept changes, or a dependency's interface changes. If the current tests were approved, the test writer keeps each approved test whose example didn't change, and the new file needs approval again (see [Approving tests](#approving-tests)).
 - **Implementations** regenerate when anything in the concept changes (Rules and Decisions included), when a dependency's interface changes, or when the tests change.
 - A dependency's Rules, Decisions, or implementation never trigger regeneration: concepts depend on interfaces only.
 - Changing models or ccc's prompts regenerates nothing: code that passes its approved tests stays current, whichever model wrote it. Upgrading `@ccc/runtime` invalidates everything.
 - `ccc build --fresh [id]` regenerates implementations even when they're current (all of them, or just `id`; its dependencies still follow the cache). Tests are kept. `ccc tests --fresh [id]` regenerates tests, which then need approval again.
 - To regenerate one concept's tests by hand (say a generated test is wrong), delete `.ccc/gen/<id>.test.ts` and run `ccc tests <id>`. When every implementation attempt that runs the tests fails the same unapproved test, the build error says so and points at the test file.
 - A build writes the manifest when it finishes. If you interrupt it, work generated so far stays on disk but is regenerated next time.
+
+## Approving tests
+
+Generated tests are pending until a person approves them, and `ccc verify` fails while any are pending. `ccc approve` shows each concept as its examples, each followed by the `expect` statements of its test, without setup code:
+
+```
+=== game.player.hand (.ccc/gen/game/player/hand.test.ts): 2 tests, 1 changed, 1 unchanged ===
+  [ex 1] unchanged  given an empty hand, add(A♠) → size is 1
+  [ex 2] changed    given hand [A♠], add(A♠) → throws DuplicateCard
+                    expect(() => hand.add(card('A', '♠'))).toThrow(DuplicateCard);
+approve game.player.hand? [y]es / [n]o / [f]ull file
+```
+
+Check that each test's assertions say what its example says. `f` prints the whole file, setup included; `--full` prints every file whole. A test with no `expect` statements is shown in full.
+
+Approval records each test against its example's text. After a regeneration, tests whose example and code both match what you approved are marked `unchanged` and collapse to one line; `changed` means the same example got different code, and `new` means an example that was never approved. Setup code outside the tests (imports, helpers, `beforeEach`) is recorded too, and the review says when it changed.
+
+When the approved tests exist, regeneration gives them to the test writer, which keeps the tests for unchanged examples and writes only the rest. `ccc tests --fresh` starts over instead.
 
 ## How generation works
 

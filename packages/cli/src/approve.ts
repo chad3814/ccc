@@ -71,6 +71,34 @@ export async function reviewTests(
   );
 }
 
+export interface KeptTest {
+  example: number;
+  // The test's tag in the approved file.
+  was: number;
+}
+
+// Which examples still have their approved test in `source` (the approved
+// file), and under which tag, so regeneration can keep those tests.
+export async function keptTests(
+  examples: readonly string[],
+  source: string,
+  approved: Readonly<Record<string, string>>,
+): Promise<KeptTest[]> {
+  const tagByCode = new Map<string, number>();
+  for (const test of testCases(source)) {
+    tagByCode.set(await sha256(test.code), test.example);
+  }
+  const kept: KeptTest[] = [];
+  for (const [index, text] of examples.entries()) {
+    const code = approved[await exampleHash(text)];
+    const was = code === undefined ? undefined : tagByCode.get(code);
+    if (was !== undefined) {
+      kept.push({ example: index + 1, was });
+    }
+  }
+  return kept;
+}
+
 // True when an approval recorded the shared code and it has changed since.
 export async function sharedCodeChanged(source: string, approved: Readonly<Record<string, string>>): Promise<boolean> {
   const recorded = approved[SHARED_KEY];
