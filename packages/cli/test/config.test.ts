@@ -15,7 +15,7 @@ describe('loadConfig', () => {
         },
         ladder: DEFAULT_LADDER,
         escalateAfter: 2,
-        maxAttempts: 3,
+        maxAttempts: 6,
         testMaxAttempts: 3,
         concurrency: 4,
       },
@@ -65,10 +65,31 @@ describe('loadConfig', () => {
     ]);
   });
 
+  it('warns when the attempts can never reach the cap', async () => {
+    const root = await writeProject({ 'ccc.config.ts': 'export default { maxAttempts: 3 };\n' });
+    const { diagnostics } = await loadConfig(root);
+    expect(diagnostics).toEqual([
+      expect.objectContaining({
+        severity: 'warning',
+        file: 'ccc.config.ts',
+        message: "maxAttempts: 3 attempts escalating after every 2 never reach cap 'claude-opus-5' for impl (needs 5)",
+      }),
+    ]);
+  });
+
+  it('reaches the cap with the default attempts', async () => {
+    const root = await writeProject({ 'concepts/.keep': '' });
+    const { config } = await loadConfig(root);
+    for (const artifact of ['impl', 'tests'] as const) {
+      const attempts = artifact === 'impl' ? config.maxAttempts : config.testMaxAttempts;
+      expect(config.escalateAfter * (modelTiers(config, artifact).length - 1) + 1).toBeLessThanOrEqual(attempts);
+    }
+  });
+
   it('reports a config file that fails to load', async () => {
     const root = await writeProject({ 'ccc.config.ts': 'export default {\n' });
     const { config, diagnostics } = await loadConfig(root);
-    expect(config.maxAttempts).toBe(3);
+    expect(config.maxAttempts).toBe(6);
     expect(diagnostics[0]?.message).toMatch(/^cannot load config: /);
   });
 

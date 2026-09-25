@@ -2,7 +2,7 @@ import { access } from 'node:fs/promises';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { z } from 'zod';
-import { error, type Diagnostic } from './diagnostics.js';
+import { error, warning, type Diagnostic } from './diagnostics.js';
 
 export const CONFIG_FILE = 'ccc.config.ts';
 
@@ -26,7 +26,8 @@ export const configSchema = z
     ladder: z.array(z.string().min(1)).min(1).default([...DEFAULT_LADDER]),
     // Failed attempts on one model before the next attempt moves up a step.
     escalateAfter: z.number().int().min(1).max(10).default(2),
-    maxAttempts: z.number().int().min(1).max(10).default(3),
+    // Enough for implementations to climb from haiku to opus at escalateAfter 2.
+    maxAttempts: z.number().int().min(1).max(10).default(6),
     testMaxAttempts: z.number().int().min(1).max(10).default(3),
     concurrency: z.number().int().min(1).max(16).default(4),
   })
@@ -62,6 +63,26 @@ export function modelTiers(config: Config, artifact: Artifact): string[] {
     return [choice];
   }
   return config.ladder.slice(config.ladder.indexOf(choice.start), config.ladder.indexOf(choice.cap) + 1);
+}
+
+// Attempts that stop before the cap make the cap unreachable, which is
+// legal but almost never meant.
+function reachWarnings(config: Config): Diagnostic[] {
+  return (['impl', 'tests'] as const).flatMap((artifact) => {
+    const tiers = modelTiers(config, artifact);
+    const needed = config.escalateAfter * (tiers.length - 1) + 1;
+    const attempts = artifact === 'impl' ? config.maxAttempts : config.testMaxAttempts;
+    if (attempts >= needed) {
+      return [];
+    }
+    const field = artifact === 'impl' ? 'maxAttempts' : 'testMaxAttempts';
+    return [
+      warning(
+        CONFIG_FILE,
+        `${field}: ${attempts} attempts escalating after every ${config.escalateAfter} never reach cap '${tiers.at(-1) ?? ''}' for ${artifact} (needs ${needed})`,
+      ),
+    ];
+  });
 }
 
 export interface ConfigResult {
@@ -101,7 +122,7 @@ export async function loadConfig(root: string): Promise<ConfigResult> {
         ),
       };
     }
-    return { config: parsed.data, diagnostics: [] };
+    return { config: parsed.data, diagnostics: reachWarnings(parsed.data) };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     return { config: defaults, diagnostics: [error(CONFIG_FILE, `cannot load config: ${message}`)] };

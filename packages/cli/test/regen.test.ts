@@ -29,7 +29,7 @@ describe('runRegen', () => {
 
   it('reports failure and rejects unknown concepts', async () => {
     const failing = await runRegen(root, 'counter', new FakeGenerator(pipelineResponder({ 'impl:counter': () => null })));
-    expect(failing).toMatchObject({ passed: false, attempts: 3 });
+    expect(failing).toMatchObject({ passed: false, attempts: 6 });
     const unknown = await runRegen(root, 'nope', new FakeGenerator(pipelineResponder()));
     expect(unknown.diagnostics.map((d) => d.message)).toEqual(["unknown concept 'nope'"]);
   });

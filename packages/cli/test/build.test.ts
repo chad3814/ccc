@@ -212,7 +212,7 @@ describe('runBuild', () => {
     expect(result.skipped).toEqual(['count-adds']);
     expect(await readFileOrNull(root, modulePath('hand'))).toBeNull();
     expect(await readFileOrNull(root, modulePath('counter'))).toContain('export class Counter');
-    expect(result.diagnostics.map((d) => d.message).join('\n')).toContain('implementation generation failed after 3 attempt(s)');
+    expect(result.diagnostics.map((d) => d.message).join('\n')).toContain('implementation generation failed after 6 attempt(s)');
     expect(result.diagnostics.filter((d) => d.message.startsWith('test file failed to run'))).toEqual([]);
   }, 180_000);
 

@@ -35,7 +35,7 @@ Never edit these files. `ccc verify` names any file that changed since the build
 - **Tests** regenerate when anything in the concept changes, or a dependency's interface changes. New tests need approval again.
 - **Implementations** regenerate when anything in the concept changes (Rules and Decisions included), when a dependency's interface changes, or when the tests change.
 - A dependency's Rules, Decisions, or implementation never trigger regeneration: concepts depend on interfaces only.
-- Changing models or upgrading ccc (its prompts) regenerates nothing: code that passes its approved tests stays current, whichever model wrote it. Upgrading `@ccc/runtime` invalidates everything.
+- Changing models or ccc's prompts regenerates nothing: code that passes its approved tests stays current, whichever model wrote it. Upgrading `@ccc/runtime` invalidates everything.
 - `ccc build --fresh [id]` regenerates implementations even when they're current (all of them, or just `id`; its dependencies still follow the cache). Tests are kept. `ccc tests --fresh [id]` regenerates tests, which then need approval again.
 - To regenerate one concept's tests by hand (say a generated test is wrong), delete `.ccc/gen/<id>.test.ts` and run `ccc tests <id>`. When every implementation attempt that runs the tests fails the same unapproved test, the build error says so and points at the test file.
 - A build writes the manifest when it finishes. If you interrupt it, work generated so far stays on disk but is regenerated next time.
@@ -77,7 +77,7 @@ export default {
   },
   ladder: ['claude-haiku-4-5', 'claude-sonnet-5', 'claude-opus-5', 'claude-fable-5-1'],  // weakest to strongest
   escalateAfter: 2,     // failed attempts on one model before moving up
-  maxAttempts: 3,       // implementation attempts per build, across all models
+  maxAttempts: 6,       // implementation attempts per build, across all models (a warning says if they can't reach the cap)
   testMaxAttempts: 3,   // test attempts per build
   concurrency: 4,       // parallel generations within a stage
 };

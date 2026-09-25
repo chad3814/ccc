@@ -212,7 +212,7 @@ export default defineConfig({
   },
   ladder: ['claude-haiku-4-5', 'claude-sonnet-5', 'claude-opus-5', 'claude-fable-5-1'],
   escalateAfter: 2,
-  maxAttempts: 3,
+  maxAttempts: 6,
   testMaxAttempts: 3,
   concurrency: 4,
 });

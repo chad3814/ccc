@@ -114,7 +114,7 @@ describe('generateImpl', () => {
     await writeFileAtomic(root, modulePath('hand'), '// previous good version\n');
     const outcome = await generateImpl(ctx, hand, CANNED_TESTS.hand ?? '', { key: 'k'.repeat(16), commit: true });
     expect(outcome.source).toBeNull();
-    expect(outcome.record).toMatchObject({ attempts: 3, outcome: 'failed' });
+    expect(outcome.record).toMatchObject({ attempts: 6, outcome: 'failed' });
     expect(await readFileOrNull(root, modulePath('hand'))).toBe('// previous good version\n');
   });
 
