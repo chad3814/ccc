@@ -1,5 +1,5 @@
 import { feedbackMessage } from './context.js';
-import type { Generator, Usage } from './llm.js';
+import { GeneratorUnavailable, type Generator, type Usage } from './llm.js';
 import type { Generation } from './manifest.js';
 import { costUsd } from './pricing.js';
 
@@ -56,6 +56,9 @@ export async function generationLoop(options: LoopOptions): Promise<GenerationOu
     try {
       turn = await session.send(message);
     } catch (err) {
+      if (err instanceof GeneratorUnavailable) {
+        throw err;
+      }
       // The SDK already retried transient failures; stop this artifact and
       // let the build carry on with the rest.
       const reason = err instanceof Error ? err.message : String(err);

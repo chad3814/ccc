@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { generationLoop } from '../src/generation.js';
+import { GeneratorUnavailable } from '../src/llm.js';
 import { FakeGenerator } from './fake-generator.js';
 
 function options(fake: FakeGenerator, check: (code: string) => Promise<string[]>) {
@@ -54,4 +55,12 @@ describe('generationLoop', () => {
     expect(outcome.record).toMatchObject({ attempts: 1, outcome: 'failed' });
     expect(outcome.problems).toEqual(['generator error: socket hang up']);
   });
+
+  it('lets GeneratorUnavailable escape so the build can stop', async () => {
+    const fake = new FakeGenerator(() => {
+      throw new GeneratorUnavailable('claude-opus-5 is rate-limited');
+    });
+    await expect(generationLoop(options(fake, async () => []))).rejects.toBeInstanceOf(GeneratorUnavailable);
+  });
 });
+

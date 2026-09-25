@@ -4,7 +4,9 @@ import type {
   BetaStopReason,
 } from '@anthropic-ai/sdk/resources/beta/messages/messages';
 import { describe, expect, it } from 'vitest';
-import { AnthropicGenerator, MAX_TOKENS, type StreamedReply } from '../src/anthropic.js';
+import Anthropic from '@anthropic-ai/sdk';
+import { AnthropicGenerator, MAX_TOKENS, buildRequest, modelProfile, type StreamedReply } from '../src/anthropic.js';
+import { GeneratorUnavailable } from '../src/llm.js';
 
 function reply(content: BetaContentBlock[], stopReason: BetaStopReason = 'tool_use'): StreamedReply {
   return {
@@ -83,5 +85,73 @@ describe('AnthropicGenerator', () => {
       role: 'user',
       content: [{ type: 'tool_result', tool_use_id: 't9', is_error: true, content: 'shorter please' }],
     });
+  });
+});
+
+describe('model-aware requests', () => {
+  const messages = [{ role: 'user' as const, content: 'x' }];
+
+  it('uses adaptive thinking and server-side fallbacks on current frontier models', () => {
+    const request = buildRequest({ model: 'claude-opus-5', system: 's' }, messages);
+    expect(request.thinking).toEqual({ type: 'adaptive' });
+    expect(request.fallbacks).toBe('default');
+    expect(request.betas).toEqual(['server-side-fallback-2026-07-01']);
+  });
+
+  it('uses adaptive thinking without fallbacks on Sonnet 5', () => {
+    const request = buildRequest({ model: 'claude-sonnet-5', system: 's' }, messages);
+    expect(request.thinking).toEqual({ type: 'adaptive' });
+    expect(request.fallbacks).toBeUndefined();
+    expect(request.betas).toBeUndefined();
+  });
+
+  it('uses a thinking budget on Haiku 4.5', () => {
+    const request = buildRequest({ model: 'claude-haiku-4-5', system: 's' }, messages);
+    expect(request.thinking).toEqual({ type: 'enabled', budget_tokens: 16_000 });
+    expect(request.fallbacks).toBeUndefined();
+    expect(request.max_tokens).toBe(MAX_TOKENS);
+  });
+
+  it('sends no thinking or fallback settings for models it does not know', () => {
+    const request = buildRequest({ model: 'some-future-model', system: 's' }, messages);
+    expect(request.thinking).toBeUndefined();
+    expect(request.fallbacks).toBeUndefined();
+    expect(modelProfile('some-future-model')).toEqual({ thinking: 'none', fallbacks: false });
+  });
+});
+
+describe('unavailable generators', () => {
+  function failing(error: Error) {
+    return new AnthropicGenerator(async () => {
+      throw error;
+    });
+  }
+
+  it('turns a persistent 429 into GeneratorUnavailable, noting missing rate-limit headers', async () => {
+    const error = new Anthropic.RateLimitError(429, { type: 'error' }, 'rate limited', new Headers());
+    const send = failing(error).start({ model: 'claude-opus-5', system: 's' }).send('go');
+    await expect(send).rejects.toBeInstanceOf(GeneratorUnavailable);
+    await expect(send).rejects.toThrow(
+      'claude-opus-5 is rate-limited for this API key, and the response had no rate-limit headers, which usually means the organization has no allowance for this model; check the console under Settings → Limits, or set another model in ccc.config.ts',
+    );
+  });
+
+  it('reports ordinary rate limits with the limit that was hit', async () => {
+    const headers = new Headers({ 'anthropic-ratelimit-output-tokens-limit': '8000', 'retry-after': '30' });
+    const error = new Anthropic.RateLimitError(429, { type: 'error' }, 'rate limited', headers);
+    await expect(failing(error).start({ model: 'claude-opus-5', system: 's' }).send('go')).rejects.toThrow(
+      'claude-opus-5 is still rate-limited after retries (retry after 30s); lower concurrency in ccc.config.ts or try again later',
+    );
+  });
+
+  it('turns authentication and missing-model errors into GeneratorUnavailable', async () => {
+    const auth = new Anthropic.AuthenticationError(401, { type: 'error' }, 'invalid x-api-key', new Headers());
+    await expect(failing(auth).start({ model: 'claude-opus-5', system: 's' }).send('go')).rejects.toThrow(
+      'authentication failed; check ANTHROPIC_API_KEY (or your `ant auth login` profile)',
+    );
+    const missing = new Anthropic.NotFoundError(404, { type: 'error' }, 'model not found', new Headers());
+    await expect(failing(missing).start({ model: 'claude-nope', system: 's' }).send('go')).rejects.toThrow(
+      "model 'claude-nope' is not available to this API key",
+    );
   });
 });

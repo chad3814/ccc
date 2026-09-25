@@ -7,6 +7,7 @@ import { fileHash, readFileOrNull, writeFileAtomic } from '../src/fsutil.js';
 import { modulePath, testPath } from '../src/layout.js';
 import { loadProject } from '../src/load.js';
 import { readManifest } from '../src/manifest.js';
+import { GeneratorUnavailable } from '../src/llm.js';
 import { FakeGenerator } from './fake-generator.js';
 import { CANNED_IMPL, PIPELINE_FILES, createPipelineProject, pipelineResponder, type Overrides } from './pipeline-fixture.js';
 
@@ -141,6 +142,21 @@ describe('runBuild', () => {
     expect(await readFileOrNull(built, '.ccc/gen/server.ts')).toContain('export async function createApp(');
     const { manifest } = await readManifest(built);
     expect(manifest.files['.ccc/gen/wiring.ts']).toMatch(/^[0-9a-f]{64}$/);
+  });
+
+  it('stops the whole build once when the generator is unavailable', async () => {
+    const root = await createPipelineProject();
+    const fake = new FakeGenerator(() => {
+      throw new GeneratorUnavailable('claude-opus-5 is rate-limited for this API key');
+    });
+    const result = await runBuild({ root, generator: fake });
+    expect(result.ok).toBe(false);
+    expect(fake.requests.length).toBeLessThanOrEqual(4);
+    expect(result.diagnostics.filter((d) => d.severity === 'error').map((d) => d.message)).toEqual([
+      'build stopped: claude-opus-5 is rate-limited for this API key',
+    ]);
+    const { manifest } = await readManifest(root);
+    expect(manifest.concepts).toEqual({});
   });
 
   it('plans without writing on a dry run', async () => {

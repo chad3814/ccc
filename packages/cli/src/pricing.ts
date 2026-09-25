@@ -15,7 +15,8 @@ export const PRICES: Readonly<Record<string, Price>> = {
 };
 
 export function costUsd(model: string, inputTokens: number, outputTokens: number): number | null {
-  const price = PRICES[model];
+  // The API reports dated snapshot ids (claude-haiku-4-5-20251001).
+  const price = PRICES[model] ?? PRICES[model.replace(/-\d{8}$/, '')];
   if (price === undefined) {
     return null;
   }

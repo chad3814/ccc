@@ -46,6 +46,9 @@ export function buildSummary(result: BuildResult): string {
   if (result.ok) {
     return `✓ build complete: ${result.generated.tests.length} test file(s) and ${result.generated.impl.length} implementation(s) generated`;
   }
+  if (result.failed.length === 0 && result.skipped.length === 0) {
+    return 'build failed; see the errors above';
+  }
   return `build failed: ${result.failed.length} failed, ${result.skipped.length} skipped`;
 }
 

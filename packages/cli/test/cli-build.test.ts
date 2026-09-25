@@ -34,6 +34,7 @@ describe('buildSummary', () => {
     expect(buildSummary({ ...base, ok: false, generated: { tests: [], impl: [] }, failed: ['a'], skipped: ['b', 'c'] })).toBe(
       'build failed: 1 failed, 2 skipped',
     );
+    expect(buildSummary({ ...base, ok: false, generated: { tests: [], impl: [] } })).toBe('build failed; see the errors above');
   });
 });
 

@@ -8,7 +8,7 @@ import type {
   BetaToolResultBlockParam,
 } from '@anthropic-ai/sdk/resources/beta/messages/messages';
 import { z } from 'zod';
-import { NO_TOOL_CALL_NOTE, type Generator, type Session, type SessionOptions, type Turn } from './llm.js';
+import { GeneratorUnavailable, NO_TOOL_CALL_NOTE, type Generator, type Session, type SessionOptions, type Turn } from './llm.js';
 
 export const MAX_TOKENS = 64_000;
 
@@ -50,22 +50,82 @@ const toolUse = z.object({ type: z.literal('tool_use'), id: z.string() });
 // Credentials come from the SDK's own resolution (ANTHROPIC_API_KEY or an
 // `ant auth login` profile); ccc never reads them.
 export function defaultStreamer(): Streamer {
-  const client = new Anthropic();
+  // Extra retries so ordinary per-minute limits back off as retry-after asks.
+  const client = new Anthropic({ maxRetries: 6 });
   return (params) => client.beta.messages.stream(params).finalMessage();
 }
 
+export const THINKING_BUDGET = 16_000;
+
+export interface ModelProfile {
+  thinking: 'adaptive' | 'budget' | 'none';
+  fallbacks: boolean;
+}
+
+// Request settings differ by model: current frontier models take adaptive
+// thinking (and server-side refusal fallbacks where offered); Haiku 4.5 takes
+// a thinking budget. Unknown models get neither, which every model accepts.
+const PROFILES: Readonly<Record<string, ModelProfile>> = {
+  'claude-fable-5-1': { thinking: 'adaptive', fallbacks: true },
+  'claude-fable-5': { thinking: 'adaptive', fallbacks: true },
+  'claude-opus-5-5': { thinking: 'adaptive', fallbacks: true },
+  'claude-opus-5': { thinking: 'adaptive', fallbacks: true },
+  'claude-sonnet-5': { thinking: 'adaptive', fallbacks: false },
+  'claude-opus-4-8': { thinking: 'adaptive', fallbacks: false },
+  'claude-opus-4-7': { thinking: 'adaptive', fallbacks: false },
+  'claude-opus-4-6': { thinking: 'adaptive', fallbacks: false },
+  'claude-sonnet-4-6': { thinking: 'adaptive', fallbacks: false },
+  'claude-haiku-4-5': { thinking: 'budget', fallbacks: false },
+};
+
+export function modelProfile(model: string): ModelProfile {
+  return PROFILES[model] ?? { thinking: 'none', fallbacks: false };
+}
+
 export function buildRequest(options: SessionOptions, messages: readonly BetaMessageParam[]): BetaMessageStreamParams {
-  return {
+  const profile = modelProfile(options.model);
+  const request: BetaMessageStreamParams = {
     model: options.model,
     max_tokens: MAX_TOKENS,
-    betas: ['server-side-fallback-2026-07-01'],
-    fallbacks: 'default',
-    thinking: { type: 'adaptive' },
     system: options.system,
     tools: [WRITE_MODULE_TOOL],
     tool_choice: { type: 'auto' },
     messages: [...messages],
   };
+  if (profile.thinking === 'adaptive') {
+    request.thinking = { type: 'adaptive' };
+  } else if (profile.thinking === 'budget') {
+    request.thinking = { type: 'enabled', budget_tokens: THINKING_BUDGET };
+  }
+  if (profile.fallbacks) {
+    request.betas = ['server-side-fallback-2026-07-01'];
+    request.fallbacks = 'default';
+  }
+  return request;
+}
+
+// Errors no retry or later attempt can fix become GeneratorUnavailable.
+function unavailable(model: string, err: Error): Error {
+  if (err instanceof Anthropic.RateLimitError) {
+    const headers = err.headers;
+    const hasLimits = [...headers.keys()].some((key) => key.startsWith('anthropic-ratelimit-'));
+    if (!hasLimits) {
+      return new GeneratorUnavailable(
+        `${model} is rate-limited for this API key, and the response had no rate-limit headers, which usually means the organization has no allowance for this model; check the console under Settings → Limits, or set another model in ccc.config.ts`,
+      );
+    }
+    const retryAfter = headers.get('retry-after');
+    return new GeneratorUnavailable(
+      `${model} is still rate-limited after retries${retryAfter === null ? '' : ` (retry after ${retryAfter}s)`}; lower concurrency in ccc.config.ts or try again later`,
+    );
+  }
+  if (err instanceof Anthropic.AuthenticationError || err instanceof Anthropic.PermissionDeniedError) {
+    return new GeneratorUnavailable('authentication failed; check ANTHROPIC_API_KEY (or your `ant auth login` profile)');
+  }
+  if (err instanceof Anthropic.NotFoundError) {
+    return new GeneratorUnavailable(`model '${model}' is not available to this API key`);
+  }
+  return err;
 }
 
 export class AnthropicGenerator implements Generator {
@@ -94,7 +154,12 @@ export class AnthropicGenerator implements Generator {
           }));
           messages.push({ role: 'user', content: results });
         }
-        const reply = await stream(buildRequest(options, messages));
+        let reply: StreamedReply;
+        try {
+          reply = await stream(buildRequest(options, messages));
+        } catch (err) {
+          throw err instanceof Error ? unavailable(options.model, err) : err;
+        }
         messages.push({ role: 'assistant', content: reply.content });
         openToolUses = reply.content.flatMap((block) => {
           const parsed = toolUse.safeParse(block);

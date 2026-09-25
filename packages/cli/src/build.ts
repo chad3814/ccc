@@ -12,7 +12,7 @@ import { checkModuleOnDisk, generateImpl } from './implgen.js';
 import { collectExports } from './interfaces.js';
 import { implKey, testKey, type ExportsByConcept } from './keys.js';
 import { modulePath, testPath } from './layout.js';
-import type { Generator } from './llm.js';
+import { GeneratorUnavailable, type Generator } from './llm.js';
 import type { Project } from './load.js';
 import { entryFor, hashFiles, listCccFiles, readManifest, writeManifest, type Manifest } from './manifest.js';
 import type { Concept } from './parse.js';
@@ -225,6 +225,14 @@ export async function runBuild(options: BuildOptions): Promise<BuildResult> {
   // Files this build wrote (or emitted deterministically); only these get
   // fresh hashes in the manifest, so hand edits elsewhere stay detectable.
   const touched = new Set(deterministicWrites(project, exportsByConcept).writes.map(([file]) => file));
+  // Set when the generator can't serve anything; no further work is scheduled.
+  const halt: { reason: GeneratorUnavailable | null } = { reason: null };
+  const stopOn = (err: Error): void => {
+    if (!(err instanceof GeneratorUnavailable)) {
+      throw err;
+    }
+    halt.reason ??= err;
+  };
 
   try {
     // Stage 3: tests, all concepts in parallel (tests depend only on interfaces).
@@ -233,11 +241,17 @@ export async function runBuild(options: BuildOptions): Promise<BuildResult> {
       config.concurrency,
       async (state) => {
         const concept = project.concepts.get(state.item.id);
-        if (concept === undefined) {
+        if (concept === undefined || halt.reason !== null) {
+          return;
+        }
+        let outcome;
+        try {
+          outcome = await generateTests(ctx, concept);
+        } catch (err) {
+          stopOn(err instanceof Error ? err : new Error(String(err)));
           return;
         }
         const entry = entryFor(manifest, concept.id);
-        const outcome = await generateTests(ctx, concept);
         entry.history.push(outcome.record);
         if (outcome.source === null) {
           failed.add(concept.id);
@@ -258,12 +272,15 @@ export async function runBuild(options: BuildOptions): Promise<BuildResult> {
     // Stage 4: implementations, level by level so dependencies exist first.
     if (options.testsOnly !== true) {
       for (const level of topologicalLevels(project)) {
+        if (halt.reason !== null) {
+          break;
+        }
         await mapPool(
           level.filter((id) => scope.has(id)),
           config.concurrency,
           async (id) => {
             const concept = project.concepts.get(id);
-            if (concept === undefined || failed.has(id)) {
+            if (concept === undefined || failed.has(id) || halt.reason !== null) {
               return;
             }
             const blocker = buildDependencies(concept, project).find((dep) => failed.has(dep) || skipped.has(dep));
@@ -290,8 +307,14 @@ export async function runBuild(options: BuildOptions): Promise<BuildResult> {
             if (await isModuleCurrent(root, manifest, concept, key)) {
               return;
             }
+            let outcome;
+            try {
+              outcome = await generateImpl(ctx, concept, testSource, { key, commit: true });
+            } catch (err) {
+              stopOn(err instanceof Error ? err : new Error(String(err)));
+              return;
+            }
             const entry = entryFor(manifest, id);
-            const outcome = await generateImpl(ctx, concept, testSource, { key, commit: true });
             entry.history.push(outcome.record);
             if (outcome.source === null) {
               failed.add(id);
@@ -310,7 +333,7 @@ export async function runBuild(options: BuildOptions): Promise<BuildResult> {
       // Stage 5: the composition files must type-check against what was built.
       // They reference every adapter, sync, and endpoint, so only a complete
       // build can check them.
-      if (failed.size === 0 && skipped.size === 0 && scope.size === project.concepts.size) {
+      if (halt.reason === null && failed.size === 0 && skipped.size === 0 && scope.size === project.concepts.size) {
         const composition = new Set([WIRING_FILE, SERVER_FILE]);
         for (const issue of await typecheckFiles(root, [...composition])) {
           if (composition.has(issue.file) || issue.file === '') {
@@ -321,19 +344,21 @@ export async function runBuild(options: BuildOptions): Promise<BuildResult> {
         }
       }
 
-      // Stage 6: the full suite, which exercises cross-concept behavior.
-      const testFiles: string[] = [];
-      for (const id of project.concepts.keys()) {
-        if ((await fileHash(root, testPath(id))) !== null) {
-          testFiles.push(testPath(id));
+      if (halt.reason === null) {
+        // Stage 6: the full suite, which exercises cross-concept behavior.
+        const testFiles: string[] = [];
+        for (const id of project.concepts.keys()) {
+          if ((await fileHash(root, testPath(id))) !== null) {
+            testFiles.push(testPath(id));
+          }
         }
-      }
-      const run = await runTests(root, testFiles);
-      for (const issue of run.errors) {
-        result.diagnostics.push(error(issue.file || 'concepts/', `test file failed to run: ${firstLines(issue.message)}`));
-      }
-      for (const testCase of run.cases.filter((c) => c.status === 'failed')) {
-        result.diagnostics.push(error(testCase.file, `test failed: ${testCase.name}: ${firstLines(testCase.message)}`));
+        const run = await runTests(root, testFiles);
+        for (const issue of run.errors) {
+          result.diagnostics.push(error(issue.file || 'concepts/', `test file failed to run: ${firstLines(issue.message)}`));
+        }
+        for (const testCase of run.cases.filter((c) => c.status === 'failed')) {
+          result.diagnostics.push(error(testCase.file, `test failed: ${testCase.name}: ${firstLines(testCase.message)}`));
+        }
       }
     }
   } finally {
@@ -344,6 +369,9 @@ export async function runBuild(options: BuildOptions): Promise<BuildResult> {
   result.skipped = [...skipped].sort(compareIds);
   result.generated.tests.sort(compareIds);
   result.generated.impl.sort(compareIds);
+  if (halt.reason !== null) {
+    result.diagnostics.push(error('concepts/', `build stopped: ${halt.reason.message}`));
+  }
   result.ok = !hasErrors(result.diagnostics);
   return result;
 }

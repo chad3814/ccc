@@ -50,7 +50,13 @@ Each artifact gets one conversation with Claude. The generated code is checked, 
 
   A failing implementation is never kept; the previous version is restored.
 
-Requests use `claude-opus-5` with adaptive thinking and server-side refusal fallbacks (`fallbacks: "default"`).
+Request settings depend on the model. `claude-opus-5` (the default), Opus 5.5, and Fable get adaptive thinking and server-side refusal fallbacks (`fallbacks: "default"`); Sonnet 5 and the Opus 4.6–4.8 family get adaptive thinking; `claude-haiku-4-5` gets a 16,000-token thinking budget; any other model gets neither setting.
+
+The SDK retries rate limits up to 6 times, honoring `retry-after`. If the generator still can't serve requests (a persistent rate limit, bad credentials, or an unknown model), the build stops at once with one message saying which, and completed work is kept. A 429 with no rate-limit headers usually means your organization has no allowance for that model; check the console under Settings → Limits, or pick another model:
+
+```ts
+export default { models: { impl: 'claude-haiku-4-5', tests: 'claude-haiku-4-5' } };
+```
 
 ## Configuration
 
