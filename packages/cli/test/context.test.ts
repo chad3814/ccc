@@ -55,3 +55,38 @@ describe('feedbackMessage', () => {
     expect(many).not.toContain('- p50');
   });
 });
+
+describe('adapter requests', () => {
+  const adapterProject = projectFrom({
+    'tally.md': concept('kind: aggregate\ninterface: |\n  export class Tally {\n    add(n: number): void;\n  }'),
+    'tally-store.md': concept(
+      "kind: store\npersists: tally\ninterface: |\n  import type { Database } from '@ccc/runtime';\n  export class TallyStore {\n    constructor(db: Database);\n    save(t: Tally): Promise<void>;\n  }",
+      '## Intent\nx\n\n## Schema\n```sql\ncreate table t (n integer);\n```\n\n## Examples\n- a\n',
+    ),
+    'notify.md': concept('kind: sync\nwhen: tally#add\nthen: [tally-store#save, tally#add]'),
+    'api.md': concept(
+      'kind: endpoint\nuses: [tally, tally-store]\ninterface: |\n  export function createHandler(deps: object): (request: Request) => Promise<Response>;',
+    ),
+  });
+  const adapterExports = collectExports(adapterProject);
+  const get = (id: string) => {
+    const found = adapterProject.concepts.get(id);
+    if (found === undefined) throw new Error('fixture');
+    return found;
+  };
+
+  it('tells store and endpoint test writers how to get a database and an app', () => {
+    const storeRequest = testRequest(get('tally-store'), adapterProject, adapterExports, ['tally']);
+    expect(storeRequest).toContain("## Test support\nCreate a database with `pgliteDatabase()` from '@ccc/runtime/pglite', then run `await db.exec(schemaSql)` with `schemaSql` from './schema.js'.");
+    expect(storeRequest).not.toContain('createApp');
+    const apiRequest = testRequest(get('api'), adapterProject, adapterExports, ['tally', 'tally-store']);
+    expect(apiRequest).toContain("Build the app with `const app = await createApp(db, { endpoints: ['api'] })` from './server.js'");
+    const plain = testRequest(get('tally'), adapterProject, adapterExports, []);
+    expect(plain).not.toContain('## Test support');
+  });
+
+  it('lists syncs an endpoint may trigger and what they need in scope', () => {
+    const request = implRequest(get('api'), adapterProject, adapterExports, '');
+    expect(request).toContain('## Syncs that may fire\n- notify: after tally#add; bind in scope: tally');
+  });
+});

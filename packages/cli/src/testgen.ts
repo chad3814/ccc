@@ -1,6 +1,7 @@
 import { mkdir, realpath, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import type { Config } from './config.js';
+import { SCHEMA_DECLARATION, SERVER_DECLARATION } from './compose.js';
 import { testRequest } from './context.js';
 import { generationLoop, type GenerationOutcome } from './generation.js';
 import { TEST_PACKAGES, checkImports, testImportsFor, transitiveDependencies } from './imports.js';
@@ -58,6 +59,8 @@ async function typecheckAgainstInterfaces(ctx: GenerateContext, concept: Concept
         await writeFile(full, file.content);
       }),
     );
+    await writeFile(path.join(dir, 'schema.d.ts'), SCHEMA_DECLARATION);
+    await writeFile(path.join(dir, 'server.d.ts'), SERVER_DECLARATION);
     const testFile = path.join(dir, `${concept.id.split('.').join('/')}.test.ts`);
     await mkdir(path.dirname(testFile), { recursive: true });
     await writeFile(testFile, source);

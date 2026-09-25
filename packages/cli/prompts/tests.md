@@ -11,3 +11,5 @@ Every test file must:
 - Assert the outcome each example states, including the class of any thrown error.
 
 When you get feedback, fix every problem and call write_module again with the complete file.
+
+Adapters: follow the request's Test support section exactly. Every test creates its own fresh database.

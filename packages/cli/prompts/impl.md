@@ -13,3 +13,8 @@ Every module must:
 - Stay small and readable. Don't write comments that restate the code.
 
 When you get feedback about failed checks, fix every listed problem and call write_module again with the complete corrected file.
+
+Adapters (store, auth, endpoint):
+- Import `Database` and helpers from '@ccc/runtime'. Store and auth classes receive `db: Database` in their constructor. Use parameterized SQL (`$1`, `$2`) against the tables in the concept's Schema section. Describe row shapes with type aliases and convert rows into domain objects explicitly.
+- An endpoint's `createHandler(deps)` builds its routes with Hono (`import { Hono } from 'hono'`) and returns `(request) => app.fetch(request)`. Register `app.notFound(() => unmatched())` so other endpoints can handle routes this one doesn't own. Validate request bodies with zod. Answer DomainError subclasses with `errorResponse(err)`, and translate the concept's own error classes into the statuses its Examples give.
+- Wrap domain actions that may trigger syncs in `await withScope({ '<concept id>': instance }, async () => { ... })`, binding each aggregate the listed syncs need.

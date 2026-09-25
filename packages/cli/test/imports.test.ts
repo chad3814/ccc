@@ -79,6 +79,24 @@ describe('allowed imports per concept', () => {
       './count-adds.js',
       './counter.js',
       './hand.js',
+      './schema.js',
     ]);
+  });
+});
+
+describe('adapter test imports', () => {
+  it('allows the schema module everywhere and the server module for endpoints', () => {
+    const project = projectFrom({
+      'tally.md': concept('kind: aggregate\ninterface: |\n  export class Tally {\n    add(n: number): void;\n  }'),
+      'game.md': concept('kind: aggregate\ninterface: export class Game {}'),
+      'game/api.md': concept(
+        'kind: endpoint\nuses: [tally]\ninterface: |\n  export function createHandler(deps: object): (request: Request) => Promise<Response>;',
+      ),
+    });
+    const tally = project.concepts.get('tally');
+    const api = project.concepts.get('game.api');
+    if (tally === undefined || api === undefined) throw new Error('fixture');
+    expect([...testImportsFor(tally, project)].sort()).toEqual(['./schema.js', './tally.js']);
+    expect([...testImportsFor(api, project)].sort()).toEqual(['../schema.js', '../server.js', '../tally.js', './api.js']);
   });
 });

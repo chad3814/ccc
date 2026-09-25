@@ -83,12 +83,18 @@ export function moduleImportsFor(concept: Concept, project: Project): Set<string
 }
 
 // Tests may build values from any concept their subject depends on, directly
-// or not, plus the module under test itself.
+// or not, plus the module under test, the schema module, and (for endpoints)
+// the composition root.
 export function testImportsFor(concept: Concept, project: Project): Set<string> {
-  return new Set([
+  const allowed = new Set([
     ownModuleSpecifier(concept.id),
+    relativeImport(concept.id, 'schema'),
     ...transitiveDependencies(concept, project).map((id) => relativeImport(concept.id, id)),
   ]);
+  if (concept.frontmatter.kind === 'endpoint') {
+    allowed.add(relativeImport(concept.id, 'server'));
+  }
+  return allowed;
 }
 
 export function checkImports(source: string, allowedModules: ReadonlySet<string>, allowedPackages: readonly string[]): string[] {
