@@ -4,12 +4,13 @@ Write software as a structured **concept model** (Markdown + YAML under `concept
 
 Status: research prototype. The full pipeline works; the card-game example in `examples/card-game` is modeled and checks clean, and generating it needs Claude credentials (see its README).
 
-- Design: [docs/superpowers/specs/2026-09-24-ccc-design.md](docs/superpowers/specs/2026-09-24-ccc-design.md)
+- Design: [docs/design.md](docs/design.md)
 - Writing concepts: [docs/schema.md](docs/schema.md)
 - Building and CI: [docs/building.md](docs/building.md)
 - Runtime and adapters: [docs/runtime.md](docs/runtime.md)
 - Example: [examples/card-game](examples/card-game)
 - Example model: [packages/cli/test/fixtures/card-game](packages/cli/test/fixtures/card-game)
+- Original spec and plans: [docs/superpowers](docs/superpowers)
 
 ## Installing
 

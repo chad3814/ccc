@@ -1,7 +1,7 @@
 # ccc (chris-chad-concepts)
 
 Compiles concept models (Markdown + YAML frontmatter under `concepts/`) into TypeScript.
-Design: `docs/superpowers/specs/2026-09-24-ccc-design.md`. Schema reference: `docs/schema.md`.
+Design: `docs/design.md` (original spec: `docs/superpowers/specs/2026-09-24-ccc-design.md`). Schema reference: `docs/schema.md`.
 
 ## Commands
 - `pnpm install`: install (pnpm only, never npm; enable with `corepack enable pnpm`)
