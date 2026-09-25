@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_MODEL, configSchema } from '../src/config.js';
 import { runtimeVersion } from '../src/runtimepkg.js';
 import { loadVersions, readPrompt } from '../src/versions.js';
 
@@ -11,13 +10,7 @@ describe('versions', () => {
     expect(await readPrompt('sync')).toContain('SyncTargets');
   });
 
-  it('hashes prompts and records models and the runtime version', async () => {
-    const versions = await loadVersions(configSchema.parse({ models: { tests: 'claude-sonnet-5' } }));
-    expect(versions.implPrompt).toMatch(/^[0-9a-f]{64}$/);
-    expect(versions.testPrompt).not.toBe(versions.implPrompt);
-    expect(versions.syncPrompt).not.toBe(versions.implPrompt);
-    expect(versions.implModel).toBe(DEFAULT_MODEL);
-    expect(versions.testModel).toBe('claude-sonnet-5');
-    expect(versions.runtime).toBe(await runtimeVersion());
+  it('records only the runtime version, which cached output depends on', async () => {
+    expect(await loadVersions()).toEqual({ runtime: await runtimeVersion() });
   });
 });

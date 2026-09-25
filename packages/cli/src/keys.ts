@@ -40,8 +40,6 @@ export async function testKey(
       // The test writer sees the whole concept, so all of it is in the key.
       concept: normalizeConcept(concept),
       dependencies: dependencyInterfaces(transitiveDependencies(concept, project), project, exportsByConcept),
-      prompt: versions.testPrompt,
-      model: versions.testModel,
       runtime: versions.runtime,
     }),
   );
@@ -60,8 +58,6 @@ export async function implKey(
       concept: normalizeConcept(concept),
       dependencies: dependencyInterfaces(dependenciesOf(concept, project), project, exportsByConcept),
       tests: testFileHash,
-      prompt: concept.frontmatter.kind === 'sync' ? versions.syncPrompt : versions.implPrompt,
-      model: versions.implModel,
       runtime: versions.runtime,
     }),
   );

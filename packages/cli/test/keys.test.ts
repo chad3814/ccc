@@ -4,7 +4,7 @@ import { implKey, interfaceTextOf, testKey } from '../src/keys.js';
 import type { Versions } from '../src/versions.js';
 import { concept, projectFrom } from './helpers.js';
 
-const VERSIONS: Versions = { implPrompt: 'ip', testPrompt: 'tp', syncPrompt: 'sp', implModel: 'm1', testModel: 'm2', runtime: 'r' };
+const VERSIONS: Versions = { runtime: 'r' };
 
 const CARD = (extra = '') =>
   concept(`kind: value\ninterface: |\n  export interface Card { readonly rank: string }${extra}`, '## Intent\nA card.\n\n## Rules\n- ranks are strings\n\n## Examples\n- a\n');
@@ -58,28 +58,20 @@ describe('cache keys', () => {
     expect(prose).toEqual(before);
   });
 
-  it('include the test file hash, models, and prompt versions', async () => {
+  it('include the test file hash and the runtime version', async () => {
     const before = await keysFor(BASE, 'hand');
     const testHash = await keysFor(BASE, 'hand', VERSIONS, 'other');
     expect(testHash.test).toBe(before.test);
     expect(testHash.impl).not.toBe(before.impl);
-    const implModel = await keysFor(BASE, 'hand', { ...VERSIONS, implModel: 'm3' });
-    expect(implModel.test).toBe(before.test);
-    expect(implModel.impl).not.toBe(before.impl);
-    const testModel = await keysFor(BASE, 'hand', { ...VERSIONS, testModel: 'm3' });
-    expect(testModel.test).not.toBe(before.test);
-    expect(testModel.impl).toBe(before.impl);
+    const runtime = await keysFor(BASE, 'hand', { runtime: 'r2' });
+    expect(runtime.test).not.toBe(before.test);
+    expect(runtime.impl).not.toBe(before.impl);
   });
 
-  it('use the sync prompt for syncs', async () => {
-    const files = {
-      ...BASE,
-      'counter.md': concept('kind: entity\ninterface: |\n  export class Counter {\n    increment(): void;\n  }'),
-      'count-adds.md': concept('kind: sync\nwhen: hand#add\nthen: [counter#increment]'),
-    };
-    const before = await keysFor(files, 'count-adds');
-    expect((await keysFor(files, 'count-adds', { ...VERSIONS, implPrompt: 'other' })).impl).toBe(before.impl);
-    expect((await keysFor(files, 'count-adds', { ...VERSIONS, syncPrompt: 'other' })).impl).not.toBe(before.impl);
+  it('leave models and prompts out: whichever model wrote passing code, it stays current', async () => {
+    const key = await keysFor(BASE, 'hand');
+    expect(Object.keys(VERSIONS)).toEqual(['runtime']);
+    expect(key).toEqual(await keysFor(BASE, 'hand', { runtime: 'r' }));
   });
 
   it('expose the synthesized interface text for syncs', () => {

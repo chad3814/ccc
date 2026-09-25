@@ -25,7 +25,7 @@ export async function runVerify(root: string): Promise<{ diagnostics: Diagnostic
   const { manifest } = manifestResult;
   const project = check.project;
   const exportsByConcept = collectExports(project);
-  const versions = await loadVersions(configResult.config);
+  const versions = await loadVersions();
 
   const onDisk = await listCccFiles(root);
   const hashes = await hashFiles(root, onDisk);

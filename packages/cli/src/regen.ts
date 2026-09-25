@@ -46,7 +46,7 @@ export async function runRegen(root: string, id: ConceptId, generator: Generator
     return result;
   }
   const exportsByConcept = collectExports(check.project);
-  const versions = await loadVersions(configResult.config);
+  const versions = await loadVersions();
   const key = await implKey(concept, check.project, exportsByConcept, versions, await sha256(testSource));
   const committed = (await readFileOrNull(root, modulePath(id))) ?? '';
   const outcome = await generateImpl(

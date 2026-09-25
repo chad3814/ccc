@@ -241,7 +241,7 @@ export async function runBuild(options: BuildOptions): Promise<BuildResult> {
   const { config } = configResult;
   const { manifest } = manifestResult;
   const exportsByConcept = collectExports(project);
-  const versions = await loadVersions(config);
+  const versions = await loadVersions();
   const scope = options.only === undefined ? new Set(project.concepts.keys()) : buildClosure(project, options.only);
   const states = await planBuild(root, project, exportsByConcept, versions, manifest, scope);
   result.plan = [...states.values()].map((state) => state.item);
