@@ -1,5 +1,6 @@
-import { mkdir, mkdtemp, symlink, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, symlink, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
+import { z } from 'zod';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { hasErrors, formatDiagnostic } from '../src/diagnostics.js';
@@ -40,9 +41,28 @@ const requireFromTests = createRequire(import.meta.url);
 
 // Generated code in temp projects imports packages (the runtime, hono, zod);
 // link the CLI's installed copies instead of installing.
+const packageName = z.object({ name: z.string().optional() });
+
+// Not every package exports ./package.json (hono doesn't), so resolve its
+// entry point and walk up to the package.json that names it.
+async function packageRoot(name: string): Promise<string> {
+  let dir = path.dirname(requireFromTests.resolve(name));
+  for (;;) {
+    const text = await readFile(path.join(dir, 'package.json'), 'utf8').catch(() => null);
+    if (text !== null && packageName.parse(JSON.parse(text)).name === name) {
+      return dir;
+    }
+    const parent = path.dirname(dir);
+    if (parent === dir) {
+      throw new Error(`cannot find the package root of ${name}`);
+    }
+    dir = parent;
+  }
+}
+
 export async function linkPackages(root: string, names: readonly string[]): Promise<void> {
   for (const name of names) {
-    const target = path.dirname(requireFromTests.resolve(`${name}/package.json`));
+    const target = await packageRoot(name);
     const link = path.join(root, 'node_modules', name);
     await mkdir(path.dirname(link), { recursive: true });
     await symlink(target, link, 'dir');
