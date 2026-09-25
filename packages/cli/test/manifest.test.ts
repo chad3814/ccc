@@ -24,6 +24,7 @@ describe('manifest', () => {
       costUsd: 0.000175,
       durationMs: 12,
       outcome: 'passed',
+      escalations: 1,
     });
     manifest.files['.ccc/gen/hand.ts'] = 'abc';
     await writeManifest(root, manifest);
@@ -31,6 +32,28 @@ describe('manifest', () => {
     expect(text?.endsWith('\n')).toBe(true);
     expect(text?.indexOf('"concepts"')).toBeLessThan(text?.indexOf('"files"') ?? 0);
     expect((await readManifest(root)).manifest).toEqual(manifest);
+  });
+
+  it('reads records written before escalation existed as never escalated', async () => {
+    const old = {
+      version: 1,
+      files: {},
+      concepts: {
+        hand: {
+          testKey: null,
+          testFileHash: null,
+          approvedTestHash: null,
+          implKey: null,
+          history: [
+            { artifact: 'impl', at: 'x', model: 'm', attempts: 1, inputTokens: 1, outputTokens: 1, costUsd: null, durationMs: 1, outcome: 'passed' },
+          ],
+        },
+      },
+    };
+    const root = await writeProject({ '.ccc/manifest.json': JSON.stringify(old) });
+    const { manifest, diagnostics } = await readManifest(root);
+    expect(diagnostics).toEqual([]);
+    expect(manifest.concepts.hand?.history[0]?.escalations).toBe(0);
   });
 
   it('creates entries on demand and reuses them', () => {

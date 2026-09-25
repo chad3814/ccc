@@ -7,6 +7,8 @@ export interface ArtifactStats {
   meanAttempts: number;
   costUsd: number;
   unpriced: number;
+  // Generations that climbed the model ladder at least once.
+  escalated: number;
 }
 
 export interface ModelStats {
@@ -53,6 +55,7 @@ function summarize(generations: readonly Generation[]): ArtifactStats {
       6,
     ),
     unpriced: generations.length - priced.length,
+    escalated: generations.filter((g) => g.escalations > 0).length,
   };
 }
 
@@ -94,7 +97,8 @@ function line(label: string, stats: ArtifactStats): string {
   }
   const rate = Math.round((stats.firstAttemptPasses / stats.generations) * 100);
   const unpriced = stats.unpriced > 0 ? ` (+${stats.unpriced} unpriced)` : '';
-  return `${label}: ${stats.generations} generation(s), ${stats.firstAttemptPasses} passed on the first attempt (${rate}%), ${stats.passed} passed, mean ${stats.meanAttempts.toFixed(2)} attempts, $${stats.costUsd.toFixed(4)}${unpriced}`;
+  const escalated = stats.escalated > 0 ? `, ${stats.escalated} escalated` : '';
+  return `${label}: ${stats.generations} generation(s), ${stats.firstAttemptPasses} passed on the first attempt (${rate}%), ${stats.passed} passed, mean ${stats.meanAttempts.toFixed(2)} attempts${escalated}, $${stats.costUsd.toFixed(4)}${unpriced}`;
 }
 
 function brief(label: string, stats: ArtifactStats): string {
@@ -120,7 +124,9 @@ export function formatStats(stats: Stats): string {
   if (stats.perModel.length > 0) {
     const width = Math.max(...stats.perModel.map((row) => row.model.length));
     lines.push(
-      'by model:',
+      // A generation counts under the model that finished it; its cost
+      // includes any weaker models it escalated from.
+      'by final model:',
       ...stats.perModel.map(
         (row) =>
           `  ${row.model.padEnd(width)}  ${brief('implementations', row.impl)}, ${brief('tests', row.tests)}, $${(row.impl.costUsd + row.tests.costUsd).toFixed(4)}`,

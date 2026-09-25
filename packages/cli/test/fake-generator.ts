@@ -21,16 +21,16 @@ export class FakeGenerator implements Generator {
   start(options: SessionOptions): Session {
     const messages: string[] = [];
     return {
-      send: async (message) => {
+      send: async (message, model) => {
         messages.push(message);
-        const request: FakeRequest = { model: options.model, system: options.system, messages: [...messages] };
+        const request: FakeRequest = { model, system: options.system, messages: [...messages] };
         this.requests.push(request);
         const code = await this.#responder(request);
         return {
           code,
           note: code === null ? NO_TOOL_CALL_NOTE : '',
           usage: { inputTokens: 100, outputTokens: 50 },
-          model: options.model,
+          model,
         };
       },
     };

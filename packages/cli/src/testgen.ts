@@ -1,6 +1,6 @@
 import { mkdir, realpath, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import type { Config } from './config.js';
+import { modelTiers, type Config } from './config.js';
 import { SCHEMA_DECLARATION, SERVER_DECLARATION } from './compose.js';
 import { testRequest } from './context.js';
 import { generationLoop, type GenerationOutcome } from './generation.js';
@@ -84,7 +84,8 @@ export async function checkTestSource(ctx: GenerateContext, concept: Concept, so
 export async function generateTests(ctx: GenerateContext, concept: Concept): Promise<GenerationOutcome> {
   return generationLoop({
     generator: ctx.generator,
-    model: ctx.config.models.tests,
+    models: modelTiers(ctx.config, 'tests'),
+    escalateAfter: ctx.config.escalateAfter,
     system: await readPrompt('tests'),
     firstMessage: testRequest(concept, ctx.project, ctx.exportsByConcept, transitiveDependencies(concept, ctx.project)),
     maxAttempts: ctx.config.testMaxAttempts,

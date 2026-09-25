@@ -4,22 +4,65 @@ import { pathToFileURL } from 'node:url';
 import { z } from 'zod';
 import { error, type Diagnostic } from './diagnostics.js';
 
-export const DEFAULT_MODEL = 'claude-opus-5';
 export const CONFIG_FILE = 'ccc.config.ts';
 
-export const configSchema = z.strictObject({
-  models: z
-    .strictObject({
-      impl: z.string().min(1).default(DEFAULT_MODEL),
-      tests: z.string().min(1).default(DEFAULT_MODEL),
-    })
-    .prefault({}),
-  maxAttempts: z.number().int().min(1).max(10).default(3),
-  testMaxAttempts: z.number().int().min(1).max(10).default(3),
-  concurrency: z.number().int().min(1).max(16).default(4),
-});
+// Models from weakest to strongest; escalation climbs one step at a time.
+export const DEFAULT_LADDER: readonly string[] = ['claude-haiku-4-5', 'claude-sonnet-5', 'claude-opus-5', 'claude-fable-5-1'];
+
+export type Artifact = 'impl' | 'tests';
+
+// A plain model name is one fixed model; a range starts at `start` and
+// escalates along the ladder, never past `cap`.
+const modelChoice = z.union([z.string().min(1), z.strictObject({ start: z.string().min(1), cap: z.string().min(1) })]);
+
+export const configSchema = z
+  .strictObject({
+    models: z
+      .strictObject({
+        impl: modelChoice.default({ start: 'claude-haiku-4-5', cap: 'claude-opus-5' }),
+        tests: modelChoice.default({ start: 'claude-sonnet-5', cap: 'claude-opus-5' }),
+      })
+      .prefault({}),
+    ladder: z.array(z.string().min(1)).min(1).default([...DEFAULT_LADDER]),
+    // Failed attempts on one model before the next attempt moves up a step.
+    escalateAfter: z.number().int().min(1).max(10).default(2),
+    maxAttempts: z.number().int().min(1).max(10).default(3),
+    testMaxAttempts: z.number().int().min(1).max(10).default(3),
+    concurrency: z.number().int().min(1).max(16).default(4),
+  })
+  .superRefine((config, ctx) => {
+    for (const artifact of ['impl', 'tests'] as const) {
+      const choice = config.models[artifact];
+      if (typeof choice === 'string') {
+        continue;
+      }
+      const startAt = config.ladder.indexOf(choice.start);
+      const capAt = config.ladder.indexOf(choice.cap);
+      for (const [field, index] of [['start', startAt], ['cap', capAt]] as const) {
+        if (index === -1) {
+          ctx.addIssue({ code: 'custom', path: ['models', artifact, field], message: `'${choice[field]}' is not on the ladder` });
+        }
+      }
+      if (startAt !== -1 && capAt !== -1 && startAt > capAt) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['models', artifact],
+          message: `start '${choice.start}' is above cap '${choice.cap}' on the ladder`,
+        });
+      }
+    }
+  });
 
 export type Config = z.output<typeof configSchema>;
+
+// The models an artifact may use, in the order it tries them.
+export function modelTiers(config: Config, artifact: Artifact): string[] {
+  const choice = config.models[artifact];
+  if (typeof choice === 'string') {
+    return [choice];
+  }
+  return config.ladder.slice(config.ladder.indexOf(choice.start), config.ladder.indexOf(choice.cap) + 1);
+}
 
 export interface ConfigResult {
   config: Config;

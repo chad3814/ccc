@@ -82,12 +82,12 @@ export function modelProfile(model: string): ModelProfile {
   return PROFILES[model] ?? { thinking: 'none', fallbacks: false };
 }
 
-export function buildRequest(options: SessionOptions, messages: readonly BetaMessageParam[]): BetaMessageStreamParams {
-  const profile = modelProfile(options.model);
+export function buildRequest(model: string, system: string, messages: readonly BetaMessageParam[]): BetaMessageStreamParams {
+  const profile = modelProfile(model);
   const request: BetaMessageStreamParams = {
-    model: options.model,
+    model,
     max_tokens: MAX_TOKENS,
-    system: options.system,
+    system,
     tools: [WRITE_MODULE_TOOL],
     tool_choice: { type: 'auto' },
     messages: [...messages],
@@ -141,7 +141,7 @@ export class AnthropicGenerator implements Generator {
     const messages: BetaMessageParam[] = [];
     let openToolUses: string[] = [];
     return {
-      send: async (text: string): Promise<Turn> => {
+      send: async (text: string, model: string): Promise<Turn> => {
         if (openToolUses.length === 0) {
           messages.push({ role: 'user', content: text });
         } else {
@@ -156,9 +156,9 @@ export class AnthropicGenerator implements Generator {
         }
         let reply: StreamedReply;
         try {
-          reply = await stream(buildRequest(options, messages));
+          reply = await stream(buildRequest(model, options.system, messages));
         } catch (err) {
-          throw err instanceof Error ? unavailable(options.model, err) : err;
+          throw err instanceof Error ? unavailable(model, err) : err;
         }
         messages.push({ role: 'assistant', content: reply.content });
         openToolUses = reply.content.flatMap((block) => {

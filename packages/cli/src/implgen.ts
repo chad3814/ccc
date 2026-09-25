@@ -1,3 +1,4 @@
+import { modelTiers } from './config.js';
 import { implRequest } from './context.js';
 import { readFileOrNull, removeFile, writeFileAtomic } from './fsutil.js';
 import { generationLoop, type GenerationOutcome } from './generation.js';
@@ -74,7 +75,8 @@ export async function generateImpl(
   try {
     const outcome = await generationLoop({
       generator: ctx.generator,
-      model: ctx.config.models.impl,
+      models: modelTiers(ctx.config, 'impl'),
+      escalateAfter: ctx.config.escalateAfter,
       system: await readPrompt(concept.frontmatter.kind === 'sync' ? 'sync' : 'impl'),
       firstMessage: implRequest(concept, ctx.project, ctx.exportsByConcept, testSource),
       maxAttempts: ctx.config.maxAttempts,

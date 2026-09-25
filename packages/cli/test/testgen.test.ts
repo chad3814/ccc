@@ -38,7 +38,7 @@ describe('generateTests', () => {
   it('accepts tests that match the examples and type-check against interfaces', async () => {
     const { fake, outcome } = await handTests({});
     expect(outcome.source).toBe(CANNED_TESTS.hand);
-    expect(outcome.record).toMatchObject({ artifact: 'tests', attempts: 1, outcome: 'passed', model: 'claude-opus-5' });
+    expect(outcome.record).toMatchObject({ artifact: 'tests', attempts: 1, outcome: 'passed', model: 'claude-sonnet-5' });
     expect(fake.requests[0]?.system).toMatch(/^You are the test writer/);
   });
 

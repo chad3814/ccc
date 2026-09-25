@@ -12,12 +12,13 @@ export interface Turn {
   model: string;
 }
 
+// One conversation. Each turn names its model, so a session can escalate to a
+// stronger model and keep everything said so far.
 export interface Session {
-  send(message: string): Promise<Turn>;
+  send(message: string, model: string): Promise<Turn>;
 }
 
 export interface SessionOptions {
-  model: string;
   system: string;
 }
 

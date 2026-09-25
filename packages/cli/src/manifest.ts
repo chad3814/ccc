@@ -15,6 +15,8 @@ const generationSchema = z.strictObject({
   costUsd: z.number().nullable(),
   durationMs: z.number(),
   outcome: z.enum(['passed', 'failed']),
+  // Ladder steps climbed; records written before escalation existed have none.
+  escalations: z.number().int().default(0),
 });
 
 const entrySchema = z.strictObject({

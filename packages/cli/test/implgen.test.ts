@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import type { Config } from '../src/config.js';
 import { emitDeterministicFiles } from '../src/emit.js';
 import { readFileOrNull, writeFileAtomic } from '../src/fsutil.js';
 import { checkModuleOnDisk, generateImpl } from '../src/implgen.js';
@@ -6,10 +7,10 @@ import { generatedHeader, modulePath, testPath } from '../src/layout.js';
 import { FakeGenerator } from './fake-generator.js';
 import { CANNED_IMPL, CANNED_TESTS, createPipelineProject, pipelineContext, pipelineResponder, type Overrides } from './pipeline-fixture.js';
 
-async function ready(overrides: Overrides = {}) {
+async function ready(overrides: Overrides = {}, config: Partial<Config> = {}) {
   const root = await createPipelineProject();
   const fake = new FakeGenerator(pipelineResponder(overrides));
-  const ctx = await pipelineContext(root, fake);
+  const ctx = await pipelineContext(root, fake, config);
   await emitDeterministicFiles(root, ctx.project, ctx.exportsByConcept);
   for (const id of ['card', 'hand']) {
     await writeFileAtomic(root, testPath(id), CANNED_TESTS[id] ?? '');
@@ -38,6 +39,17 @@ describe('generateImpl', () => {
     const outcome = await generateImpl(ctx, hand, CANNED_TESTS.hand ?? '', { key: 'k'.repeat(16), commit: true });
     expect(outcome.record.attempts).toBe(2);
     expect(fake.requests[1]?.messages[1]).toContain('test failed: [ex 2] rejects a duplicate card');
+  });
+
+  it('starts on the configured model and escalates along the ladder', async () => {
+    const good = CANNED_IMPL.hand ?? '';
+    const { fake, ctx, hand } = await ready(
+      { 'impl:hand': (attempt) => (attempt === 1 ? good.replace('throw new DuplicateCard', 'return; throw new DuplicateCard') : good) },
+      { escalateAfter: 1 },
+    );
+    const outcome = await generateImpl(ctx, hand, CANNED_TESTS.hand ?? '', { key: 'k'.repeat(16), commit: true });
+    expect(fake.requests.map((request) => request.model)).toEqual(['claude-haiku-4-5', 'claude-sonnet-5']);
+    expect(outcome.record).toMatchObject({ model: 'claude-sonnet-5', attempts: 2, escalations: 1, outcome: 'passed' });
   });
 
   it('puts the previous module back while waiting for the next attempt', async () => {
