@@ -25,6 +25,11 @@ v1 is a **research prototype** for two developers (Chad and Chris). Its job is t
 2. `ccc stats` and `ccc regen --compare` produce first-attempt pass rate, repair attempts, cost per concept/build, and regeneration stability.
 3. Chris can clone the repo, read `docs/`, and add a concept without help.
 
+Status (2026-09-24):
+- **Criterion 1:** the card game is modeled completely (15 concepts). `ccc check` passes and the build plans 29 generations. The real build, approval, `verify`, and the smoke game need Claude credentials and are one command each (see `examples/card-game/README.md`).
+- **Criterion 2:** `stats` and `regen --compare` exist.
+- **Criterion 3:** `docs/` covers the schema, building, and the runtime.
+
 ### 1.3 Out of scope for v1
 
 Concept templates (parameterized concepts); mechanical checking of invariant placement; async/eventual syncs; background jobs; live data migrations; any deploy target; the visual concept editor; agent-based generation.
