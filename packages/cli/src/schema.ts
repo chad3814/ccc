@@ -61,6 +61,9 @@ export function sectionRule(kind: Kind): SectionRule {
   if (kind === 'store') {
     return { required: ['Intent', 'Schema'], recommended: ['Examples'], allowed: [...BASE_SECTIONS, 'Schema'] };
   }
+  if (kind === 'auth') {
+    return { required: ['Intent'], recommended: ['Examples'], allowed: [...BASE_SECTIONS, 'Schema'] };
+  }
   return { required: ['Intent'], recommended: ['Examples'], allowed: BASE_SECTIONS };
 }
 

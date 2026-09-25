@@ -82,3 +82,13 @@ describe('isHandwritten', () => {
     expect(isHandwritten(frontmatterSchema.parse({ kind: 'sync', when: 'a#b', then: ['c#d'] }))).toBe(false);
   });
 });
+
+describe('auth sections', () => {
+  it('allows an optional Schema section', () => {
+    expect(sectionRule('auth')).toEqual({
+      required: ['Intent'],
+      recommended: ['Examples'],
+      allowed: ['Intent', 'Rules', 'Examples', 'Decisions', 'Schema'],
+    });
+  });
+});

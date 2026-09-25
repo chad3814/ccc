@@ -48,10 +48,15 @@ export function checkAdapters(project: Project, exportsByConcept: ReadonlyMap<Co
       if (!hasClass(info, concept.id)) {
         diagnostics.push(error(concept.file, `store interface must export class ${cls} (constructor(db: Database))`, { line: 1 }));
       }
-    } else if (fm.kind === 'auth' && !hasClass(info, concept.id, 'authenticate')) {
-      diagnostics.push(
-        error(concept.file, `auth interface must export class ${cls} with an authenticate(request) method`, { line: 1 }),
-      );
+    } else if (fm.kind === 'auth') {
+      if (concept.sections.has('Schema') && storeSchemaSql(concept) === null) {
+        diagnostics.push(error(concept.file, '## Schema must contain a ```sql code block with the table definitions', { line: 1 }));
+      }
+      if (!hasClass(info, concept.id, 'authenticate')) {
+        diagnostics.push(
+          error(concept.file, `auth interface must export class ${cls} with an authenticate(request) method`, { line: 1 }),
+        );
+      }
     } else if (fm.kind === 'endpoint' && !(info?.functions.includes('createHandler') ?? false)) {
       diagnostics.push(error(concept.file, 'endpoint interface must export function createHandler(deps)', { line: 1 }));
     } else if (fm.kind === 'sync') {
@@ -111,7 +116,8 @@ export function combinedSchema(project: Project): string {
   const parts: string[] = [];
   for (const id of topologicalLevels(project).flat()) {
     const concept = project.concepts.get(id);
-    const sql = concept?.frontmatter.kind === 'store' ? storeSchemaSql(concept) : null;
+    const kind = concept?.frontmatter.kind;
+    const sql = concept !== undefined && (kind === 'store' || kind === 'auth') ? storeSchemaSql(concept) : null;
     if (sql !== null) {
       parts.push(`-- ${id}\n${sql}\n`);
     }

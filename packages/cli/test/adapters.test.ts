@@ -105,3 +105,24 @@ describe('sync targets an endpoint must bind', () => {
     expect(messages({ ...files, 'api.md': files['api.md'].replace('uses: [game]', 'uses: [game, stats]') })).toEqual([]);
   });
 });
+
+describe('auth schemas', () => {
+  const AUTH = (schema: string) =>
+    concept(
+      "kind: auth\ninterface: |\n  import type { Database } from '@ccc/runtime';\n  export class Auth {\n    constructor(db: Database);\n    authenticate(request: Request): Promise<string | null>;\n  }",
+      `## Intent\nx\n\n## Schema\n${schema}\n\n## Examples\n- a\n`,
+    );
+
+  it('includes auth tables in the combined schema', () => {
+    const project = projectFrom({ 'auth.md': AUTH('```sql\ncreate table users (id text primary key);\n```') });
+    expect(combinedSchema(project)).toBe('-- auth\ncreate table users (id text primary key);\n');
+    expect(checkAdapters(project, collectExports(project))).toEqual([]);
+  });
+
+  it('requires a sql block when auth declares a Schema', () => {
+    const project = projectFrom({ 'auth.md': AUTH('users table') });
+    expect(checkAdapters(project, collectExports(project)).map((d) => d.message)).toEqual([
+      '## Schema must contain a ```sql code block with the table definitions',
+    ]);
+  });
+});
