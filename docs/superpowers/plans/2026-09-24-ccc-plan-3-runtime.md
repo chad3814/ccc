@@ -944,7 +944,7 @@ describe('checkAdapters', () => {
         storeBody('create table tallies (id text);'),
       ),
       'auth.md': concept('kind: auth\ninterface: |\n  export class Auth {\n    login(): void;\n  }'),
-      'tally-api.md': concept('kind: endpoint\ninterface: export function handle(r: Request): Promise<Response>;'),
+      'tally-api.md': concept('kind: endpoint\ninterface: |\n  export function handle(r: Request): Promise<Response>;'),
     });
     expect(found).toEqual([
       "concepts/server.md: 'server' is reserved for generated files; rename the concept",
@@ -1138,7 +1138,7 @@ describe('topologicalLevels', () => {
     const project = projectFrom({
       'card.md': concept('kind: value\ninterface: export type Card = string;'),
       'api.md': concept(
-        'kind: endpoint\nuses: [card]\ninterface: export function createHandler(deps: object): (request: Request) => Promise<Response>;',
+        'kind: endpoint\nuses: [card]\ninterface: |\n  export function createHandler(deps: object): (request: Request) => Promise<Response>;',
       ),
       'hand.md': concept('kind: collection\nof: card\ninterface: export class Hand {}'),
       'deck.md': concept('kind: collection\nof: card\nuses: [hand]\ninterface: export class Deck {}'),
@@ -1294,7 +1294,7 @@ const STORE = (name: string) =>
     `kind: store\npersists: tally\ninterface: |\n  import type { Database } from '@ccc/runtime';\n  export class ${name} {\n    constructor(db: Database);\n    record(n: number): Promise<void>;\n  }`,
     '## Intent\nx\n\n## Schema\n```sql\ncreate table t (n integer);\n```\n\n## Examples\n- a\n',
   );
-const API = concept('kind: endpoint\ninterface: export function createHandler(deps: object): (request: Request) => Promise<Response>;');
+const API = concept('kind: endpoint\ninterface: |\n  export function createHandler(deps: object): (request: Request) => Promise<Response>;');
 
 const files = {
   'tally.md': TALLY,
@@ -1593,7 +1593,7 @@ describe('adapter test imports', () => {
       'tally.md': concept('kind: aggregate\ninterface: |\n  export class Tally {\n    add(n: number): void;\n  }'),
       'game.md': concept('kind: aggregate\ninterface: export class Game {}'),
       'game/api.md': concept(
-        'kind: endpoint\nuses: [tally]\ninterface: export function createHandler(deps: object): (request: Request) => Promise<Response>;',
+        'kind: endpoint\nuses: [tally]\ninterface: |\n  export function createHandler(deps: object): (request: Request) => Promise<Response>;',
       ),
     });
     const tally = project.concepts.get('tally');
@@ -1616,7 +1616,7 @@ describe('adapter requests', () => {
     ),
     'notify.md': concept('kind: sync\nwhen: tally#add\nthen: [tally-store#save, tally#add]'),
     'api.md': concept(
-      'kind: endpoint\nuses: [tally, tally-store]\ninterface: export function createHandler(deps: object): (request: Request) => Promise<Response>;',
+      'kind: endpoint\nuses: [tally, tally-store]\ninterface: |\n  export function createHandler(deps: object): (request: Request) => Promise<Response>;',
     ),
   });
   const adapterExports = collectExports(adapterProject);

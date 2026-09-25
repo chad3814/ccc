@@ -2,7 +2,9 @@
 kind: store
 persists: game
 interface: |
+  import type { Database } from '@ccc/runtime';
   export class GameStore {
+    constructor(db: Database);
     load(id: string): Promise<Game | null>;
     save(game: Game): Promise<void>;
   }

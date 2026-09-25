@@ -1,5 +1,6 @@
 import { access } from 'node:fs/promises';
 import path from 'node:path';
+import { checkAdapters } from './adapters.js';
 import { error, hasErrors, sortDiagnostics, type Diagnostic } from './diagnostics.js';
 import { checkDependencyCycles, checkReferences } from './graph.js';
 import { checkInterfaces, collectExports, emitInterfaces } from './interfaces.js';
@@ -37,7 +38,11 @@ export async function runCheck(root: string): Promise<CheckResult> {
   diagnostics.push(...checkReferences(project), ...checkDependencyCycles(project), ...checkInterfaces(project));
   diagnostics.push(...(await checkHandwrittenSources(project)));
   const exportsByConcept = collectExports(project);
-  diagnostics.push(...checkSyncActions(project, exportsByConcept), ...checkSyncCycles(project));
+  diagnostics.push(
+    ...checkSyncActions(project, exportsByConcept),
+    ...checkSyncCycles(project),
+    ...checkAdapters(project, exportsByConcept),
+  );
   const emitted = emitInterfaces(project, exportsByConcept);
   diagnostics.push(...emitted.diagnostics);
   if (!hasErrors(diagnostics)) {
