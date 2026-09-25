@@ -5,8 +5,8 @@ Design: `docs/superpowers/specs/2026-09-24-ccc-design.md`. Schema reference: `do
 
 ## Commands
 - `pnpm install`: install (pnpm only, never npm; enable with `corepack enable pnpm`)
-- `pnpm verify`: lint + typecheck + test + build; must pass before any commit
-- `pnpm --filter @ccc/cli exec vitest run <pattern>`: run a subset of CLI tests
+- `pnpm verify`: lint + build + typecheck + test; must pass before any commit (the CLI resolves `@ccc/runtime` from `packages/runtime/dist`, so build comes first)
+- `pnpm --filter @ccc/cli exec vitest run <pattern>`: run a subset of CLI tests (run `pnpm build` first)
 
 ## Conventions
 - TypeScript strict; never write `any` or `unknown` (validate with zod)

@@ -24,6 +24,7 @@ git add concepts .ccc && git commit
 | `.ccc/interfaces/<id>.d.ts` | Each concept's interface; syncs get a synthesized one | no |
 | `.ccc/gen/<id>.contract.d.ts` | The interface again, beside the module, so its imports resolve to the generated dependencies | no |
 | `.ccc/conformance/<id>.ts` | Compile-time proof the module matches its contract, with no extra exports | no |
+| `.ccc/gen/wiring.ts`, `server.ts`, `main.ts`, `schema.sql`, `schema.ts` | Sync wiring, the composition root, the Node entry point, and the combined schema (see [runtime.md](runtime.md)) | no |
 | `.ccc/package.json`, `.ccc/.gitignore` | ESM marker; ignores `.ccc/.tmp/` scratch space | no |
 | `.ccc/manifest.json` | Cache keys, approvals, file hashes, generation history | no |
 

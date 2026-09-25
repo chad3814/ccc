@@ -44,9 +44,9 @@ What this concept is for. (required)
 | `entity` | Something with identity and a lifecycle (a Player) | — |
 | `collection` | A structure of other concepts (a Hand of Cards) | `of: <id>` |
 | `aggregate` | A root that owns its children and enforces rules across them (a Game) | — |
-| `store` | Persists one aggregate | `persists: <id>`; requires a `## Schema` section with the table SQL |
-| `endpoint` | HTTP routes | — |
-| `auth` | Turns a request into an identity | — |
+| `store` | Persists one aggregate | `persists: <id>`; requires a `## Schema` section with a ```` ```sql ```` block; must export its primary class with `constructor(db: Database)` |
+| `endpoint` | HTTP routes | must export `createHandler(deps)` returning `(request: Request) => Promise<Response>` |
+| `auth` | Turns a request into an identity | must export its primary class with `constructor(db: Database)` and `authenticate(request)` |
 | `sync` | When an action happens on one concept, invoke actions on others | `when`, `then`; no `interface` |
 
 The first four are **domain** kinds. `store`, `endpoint`, and `auth` are **adapter** kinds. Domain concepts can never depend on adapters; connect them with a sync instead.
@@ -56,7 +56,7 @@ The first four are **domain** kinds. `store`, `endpoint`, and `auth` are **adapt
 | Field | Meaning |
 |---|---|
 | `kind` | One of the kinds above |
-| `interface` | TypeScript declarations (classes, functions, types, error classes). Write methods without bodies. Never write `import`: types from dependencies listed in `uses` are imported automatically when the interface mentions them. |
+| `interface` | TypeScript declarations (classes, functions, types, error classes). Write methods without bodies. Never write `import`: types from dependencies listed in `uses` are imported automatically when the interface mentions them. The one exception is `import type { ... } from '@ccc/runtime'` (for `Database` and friends). |
 | `uses` | Concepts whose interfaces this one depends on. An aggregate automatically uses its direct children (except syncs). |
 | `implementation` | `generated` (default) or `handwritten` |
 | `source` | For `handwritten` only: path to the module, relative to the project root |
@@ -91,7 +91,7 @@ Start the round automatically once the table fills.
 - given 3 of 4 seats taken, join(user) → deal() called once
 ```
 
-An action is written `<concept-id>#<member>`. It resolves to an exported function named `<member>`, or else a method named `<member>` on the concept's primary class: the class named after the ID's last segment in PascalCase (`game.players` → `Players`, `game-store` → `GameStore`).
+A sync's `when` must be a method (it is wired by patching the class). An action is written `<concept-id>#<member>`. It resolves to an exported function named `<member>`, or else a method named `<member>` on the concept's primary class: the class named after the ID's last segment in PascalCase (`game.players` → `Players`, `game-store` → `GameStore`).
 
 Syncs can't form cycles: a sync must not directly or transitively re-trigger its own `when` action.
 
@@ -113,3 +113,4 @@ It makes no LLM calls. Exit code 1 if there are errors. It checks:
 7. Sync actions exist, and syncs have no cycles.
 8. Interfaces are self-contained: no `import`, no `declare global` or `declare module`, and at least one export. A name an interface uses must not come from two dependencies (only referenced names are imported, and a concept's own exports take precedence).
 9. All interfaces type-check together with TypeScript 7 (only when 1–8 pass). Web types such as `Request` and `Response` are available.
+10. Adapter conventions (see [runtime.md](runtime.md)); sync triggers are methods; `server`, `main`, `wiring`, and `schema` are reserved top-level names.

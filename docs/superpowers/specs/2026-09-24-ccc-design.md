@@ -112,7 +112,7 @@ Start the round automatically once the table fills.
 ```
 
 - **Placement:** in the lowest common ancestor directory of the concepts it connects (same rule as invariants).
-- **`when`**: one action, written `<concept-id>#<exported-member>` (`#` keeps concept IDs and member names unambiguous), that exists in a visible concept's interface.
+- **`when`**: one action, written `<concept-id>#<exported-member>` (`#` keeps concept IDs and member names unambiguous), that exists in a visible concept's interface. It must be a method of the concept's primary class, because wiring patches the class.
 - **`then`**: one or more actions in the same form.
 - **Action resolution:** `<concept-id>#<member>` resolves to an exported function named `<member>` in that concept's interface, or else a method named `<member>` on the concept's *primary class*: the exported class whose name is the PascalCase form of the ID's last segment (`game.players` → `Players`, `game-store` → `GameStore`).
 - **Conditions and argument mapping** are prose in Rules/Examples; the LLM generates a handler `(triggerArgs, triggerResult, targets) => Promise<void>` that decides whether and how to invoke the `then` actions.
@@ -315,24 +315,29 @@ No generation. The `source` module is re-exported from the concept's `.ccc/gen` 
 
 ### 5.1 `@ccc/runtime`
 
-Small, hand-written, tested normally; its version is part of every cache key.
+A small hand-written library (`packages/runtime`); its version is part of every cache key.
 
-- `withTransaction<T>(pool, fn: (tx: Tx) => Promise<T>): Promise<T>` — unit of work.
-- Sync dispatcher used by generated wrappers.
-- Error base classes: `DomainError`, `NotFound`, `Conflict`, `Unauthorized`, `Invalid`; default HTTP mapping (404, 409, 401, 400; anything else 500).
-- `defineConfig` for `ccc.config.ts`.
+- **Errors:** `DomainError` and `Invalid` (400), `Unauthorized` (401), `NotFound` (404), `Conflict` (409); `httpStatusOf(err)`.
+- **HTTP:** `json(body, status)`, `errorResponse(err)`, `unmatched()` / `isUnmatched(response)` (a 404 marked so the composition root tries the next endpoint).
+- **Databases:** `Sql` (`query<R>(text, params)`, `exec(text)`) and `Database` (adds `transaction(fn)`); `pgDatabase(pool)` wraps a `pg.Pool`; `pgliteDatabase()` from `@ccc/runtime/pglite` is a fresh in-memory Postgres for tests; `withTransaction(db, fn)`.
+- **Scopes:** `withScope(bindings, fn)` runs a unit of work (AsyncLocalStorage); `afterAction(result, sync, run)` defers sync work into the current scope; `withScope` drains deferred work (including chains) before resolving and rethrows the first failure. A missing binding throws `SyncTargetMissing`, naming the sync and the concept id.
+- **Config:** `defineConfig(config)`.
 
-### 5.2 Composition root (`.ccc/gen/server.ts`, deterministic)
+### 5.2 Composition (deterministic files in `.ccc/gen`)
 
-- `createApp({ pool }): Hono` — instantiates stores and auth, wraps domain concepts with their syncs, mounts all endpoints on one Hono app.
-- `main()` — reads `DATABASE_URL`, serves with `@hono/node-server`. Run with `tsx .ccc/gen/server.ts`.
-- Tests call `createApp` with a PGlite-backed pool.
+- `wiring.ts` patches each sync's trigger method (`Class.prototype.method`): the original runs, then the handler is deferred with `afterAction`. Class targets resolve from the scope by concept id; function-action targets are module namespaces. Syncs on the same trigger fire in sync-id order.
+- `server.ts` exports `createApp(db, { endpoints? })`, returning `(request: Request) => Promise<Response>`. It builds every store and auth adapter (`new Class(db)`), binds them as scope singletons by concept id, lazily loads each endpoint's `createHandler(container)` (container: `db` plus adapters keyed by camelCase id), runs each request in `withScope`, and tries endpoints in order until one doesn't answer `unmatched()`.
+- `main.ts` is the Node entry: a `pg.Pool` from `DATABASE_URL`, served with `@hono/node-server` on `PORT`.
+- `schema.sql` / `schema.ts` combine every store's SQL in dependency order.
+
+Endpoints build last (after every other concept), because their tests run the whole app through `createApp`. After the implementation stage the build type-checks `wiring.ts` and `server.ts`.
 
 ### 5.3 Adapter kinds
 
-- **`store`**: persists one aggregate (`persists`). Declares its table DDL in a fenced `sql` block under a `## Schema` section (a store-only section, added to the allowed sections for `store`). ccc concatenates all store DDL into `schema.sql` in topological order. Store methods take a `Tx` and run inside the caller's transaction.
-- **`endpoint`**: authenticate via the `auth` concept, validate input with zod, call one entry action inside `withTransaction` (making syncs atomic with persistence), save, respond. Examples are HTTP-level: `POST /games/:id/play with a card not in hand → 409`.
-- **`auth`**: interface must include `authenticate(request: Request): Promise<Identity | null>`; may declare further actions (`signup`, `login`, `logout`). For the card game: email + password, PBKDF2 via Web Crypto, sessions in Postgres. **Generated security code; acceptable for a prototype only.**
+- **`store`**: primary class with `constructor(db: Database)`; `## Schema` holds a fenced `sql` block.
+- **`endpoint`**: exports `createHandler(deps)`; builds routes with Hono, validates bodies with zod, answers unknown routes with `unmatched()`, and binds the aggregates its actions touch with `withScope({ '<id>': instance }, ...)` so syncs can resolve them.
+- **`auth`**: primary class with `constructor(db: Database)` and `authenticate(request): Promise<Identity | null>`. **Generated security code; acceptable for a prototype only.**
+- Interfaces may `import type { ... } from '@ccc/runtime'`; no other import.
 
 ### 5.4 Database changes
 
