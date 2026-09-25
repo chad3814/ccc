@@ -34,7 +34,7 @@ describe('manifest', () => {
     expect((await readManifest(root)).manifest).toEqual(manifest);
   });
 
-  it('reads records written before escalation existed as never escalated', async () => {
+  it('reads manifests written before escalations and per-test approvals existed', async () => {
     const old = {
       version: 1,
       files: {},
@@ -54,12 +54,13 @@ describe('manifest', () => {
     const { manifest, diagnostics } = await readManifest(root);
     expect(diagnostics).toEqual([]);
     expect(manifest.concepts.hand?.history[0]?.escalations).toBe(0);
+    expect(manifest.concepts.hand?.approvedTests).toEqual({});
   });
 
   it('creates entries on demand and reuses them', () => {
     const manifest = emptyManifest();
     const entry = entryFor(manifest, 'card');
-    expect(entry).toEqual({ testKey: null, testFileHash: null, approvedTestHash: null, implKey: null, history: [] });
+    expect(entry).toEqual({ testKey: null, testFileHash: null, approvedTestHash: null, approvedTests: {}, implKey: null, history: [] });
     expect(entryFor(manifest, 'card')).toBe(entry);
   });
 

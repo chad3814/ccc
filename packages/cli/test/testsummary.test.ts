@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { testCases } from '../src/testsummary.js';
+import { sharedCode, testCases } from '../src/testsummary.js';
 
 const SOURCE = `import { Hand, DuplicateCard } from './hand.js';
 import { card } from '../card.js';
@@ -64,5 +64,18 @@ describe('testCases', () => {
     expect(testCases(reformatted)[0]?.code).toBe(testCases(SOURCE)[0]?.code);
     const changed = SOURCE.replace('toBe(1);\n  });\n\n  it("', 'toBe(2);\n  });\n\n  it("');
     expect(testCases(changed)[0]?.code).not.toBe(testCases(SOURCE)[0]?.code);
+  });
+});
+
+describe('sharedCode', () => {
+  it('ignores the tests themselves, comments, and formatting', () => {
+    const editedTests = SOURCE.replace('toBe(1);', 'toBe(2);').replace("const ace = card('A', '♠');", "const ace = card( 'A', '♠' ); // the ace");
+    expect(sharedCode(editedTests)).toBe(sharedCode(SOURCE));
+    expect(sharedCode(SOURCE)).not.toContain('[ex 1]');
+    expect(sharedCode(SOURCE)).toContain("it('not an example'");
+  });
+
+  it('changes when setup outside the tests changes', () => {
+    expect(sharedCode(SOURCE.replace("card('A', '♠')", "card('K', '♠')"))).not.toBe(sharedCode(SOURCE));
   });
 });

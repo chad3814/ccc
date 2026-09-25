@@ -112,3 +112,25 @@ export function testCases(source: string): TestCase[] {
   visit(file);
   return cases;
 }
+
+// Everything in the file outside the tagged tests (imports, helpers,
+// beforeEach), printed without comments or formatting. A change here can
+// change what every test does even when no test's own code changed.
+export function sharedCode(source: string): string {
+  const file = ts.createSourceFile('test.ts', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+  const cuts: [number, number][] = [];
+  const visit = (node: ts.Node): void => {
+    if (ts.isCallExpression(node) && isTestCall(node) && tagOf(node) !== null) {
+      cuts.push([node.getStart(file), node.getEnd()]);
+      return;
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(file);
+  let rest = source;
+  for (const [start, end] of cuts.reverse()) {
+    rest = `${rest.slice(0, start)}${rest.slice(end)}`;
+  }
+  const remaining = ts.createSourceFile('shared.ts', rest, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+  return printer.printFile(remaining);
+}

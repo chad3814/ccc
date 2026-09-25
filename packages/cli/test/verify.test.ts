@@ -22,7 +22,7 @@ async function copy(): Promise<string> {
 
 async function approveEverything(root: string): Promise<void> {
   const { manifest } = await readManifest(root);
-  approve(manifest, await pendingApprovals(root, manifest));
+  await approve(manifest, await pendingApprovals(root, manifest));
   await writeManifest(root, manifest);
 }
 
@@ -46,7 +46,7 @@ describe('approvals', () => {
       'counter .ccc/gen/counter.test.ts false',
       'hand .ccc/gen/hand.test.ts false',
     ]);
-    approve(manifest, pending);
+    await approve(manifest, pending);
     expect(await pendingApprovals(root, manifest)).toEqual([]);
     expect((await pendingApprovals(root, manifest, 'hand')).length).toBe(0);
   });
@@ -57,7 +57,7 @@ describe('approvals', () => {
     const { manifest } = await readManifest(root);
     const pending = await pendingApprovals(root, manifest, 'hand');
     expect(pending.map((p) => p.edited)).toEqual([true]);
-    approve(manifest, pending);
+    await approve(manifest, pending);
     expect(manifest.concepts.hand?.approvedTestHash).toBeNull();
   });
 });

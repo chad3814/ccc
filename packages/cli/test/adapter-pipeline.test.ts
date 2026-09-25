@@ -52,7 +52,7 @@ describe('adapter pipeline', () => {
 
   it('verifies once tests are approved', async () => {
     const { manifest } = await readManifest(root);
-    approve(manifest, await pendingApprovals(root, manifest));
+    await approve(manifest, await pendingApprovals(root, manifest));
     await writeManifest(root, manifest);
     expect((await runVerify(root)).diagnostics).toEqual([]);
   });

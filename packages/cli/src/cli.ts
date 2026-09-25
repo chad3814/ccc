@@ -1,7 +1,7 @@
 import path from 'node:path';
 import { Command, CommanderError } from 'commander';
 import { AnthropicGenerator } from './anthropic.js';
-import { approve, pendingApprovals, type PendingApproval } from './approve.js';
+import { approve, pendingApprovals, reviewTests, sharedCodeChanged, type PendingApproval, type ReviewedTest } from './approve.js';
 import { runBuild, type BuildResult } from './build.js';
 import { runCheck } from './check.js';
 import { SCHEMA_SQL_FILE } from './compose.js';
@@ -19,7 +19,8 @@ export interface Io {
   cwd: string;
   stdout(text: string): void;
   stderr(text: string): void;
-  confirm?(question: string): Promise<boolean>;
+  // Asks until the answer is one of `choices` (single letters).
+  choose?(question: string, choices: readonly string[]): Promise<string>;
   env?: Readonly<Record<string, string | undefined>>;
 }
 
@@ -98,7 +99,72 @@ async function buildCommand(root: string, io: Io, services: Services, options: B
   return result.ok ? 0 : 1;
 }
 
-async function approveCommand(root: string, io: Io, options: { only: string | undefined; yes: boolean }): Promise<number> {
+const STATUS_WIDTH = 'unchanged'.length;
+const INDENT = ' '.repeat(`  [ex N] ${'x'.repeat(STATUS_WIDTH)}  `.length);
+
+function indented(text: string): string {
+  return text
+    .split('\n')
+    .map((line) => `${INDENT}${line}`)
+    .join('\n');
+}
+
+// One concept's tests as claims: each example beside its test's assertions.
+// Tests unchanged since the last approval collapse to their example.
+function formatReview(item: PendingApproval, reviewed: readonly ReviewedTest[], sharedChanged: boolean): string {
+  const counts = (['changed', 'new', 'unchanged'] as const)
+    .map((status) => [status, reviewed.filter((r) => r.status === status).length] as const)
+    .filter(([, count]) => count > 0)
+    .map(([status, count]) => `${count} ${status}`);
+  const lines = [`=== ${item.id} (${item.file}): ${reviewed.length} tests, ${counts.join(', ')} ===`];
+  for (const r of reviewed) {
+    const [first = '', ...rest] = r.text.split('\n');
+    lines.push(`  [ex ${r.example}] ${r.status.padEnd(STATUS_WIDTH)}  ${first}`, ...rest.map((line) => `${INDENT}${line.trim()}`));
+    if (r.status === 'unchanged') {
+      continue;
+    }
+    if (r.test === null) {
+      lines.push(indented('(no test for this example)'));
+    } else if (r.test.assertions.length === 0) {
+      lines.push(indented('(no expect statements; the whole test:)'), indented(r.test.body));
+    } else {
+      lines.push(...r.test.assertions.map(indented));
+    }
+  }
+  if (sharedChanged) {
+    lines.push('  shared code outside the tests changed; press f to see the whole file');
+  }
+  return lines.join('\n');
+}
+
+async function describePending(item: PendingApproval, full: boolean): Promise<string> {
+  if (full || item.examples === null) {
+    return `=== ${item.file} ===\n${item.source}`;
+  }
+  const reviewed = await reviewTests(item.examples, item.source, item.approved);
+  return formatReview(item, reviewed, await sharedCodeChanged(item.source, item.approved));
+}
+
+async function askApproval(io: Io, item: PendingApproval): Promise<boolean> {
+  const choose = io.choose;
+  if (choose === undefined) {
+    return false;
+  }
+  let answer = await choose(`approve ${item.id}? [y]es / [n]o / [f]ull file`, ['y', 'n', 'f']);
+  if (answer === 'f') {
+    io.stdout(`\n=== ${item.file} ===\n${item.source}\n`);
+    answer = await choose(`approve ${item.id}? [y]es / [n]o`, ['y', 'n']);
+  }
+  return answer === 'y';
+}
+
+interface ApproveOptions {
+  only: string | undefined;
+  yes: boolean;
+  full: boolean;
+}
+
+async function approveCommand(root: string, io: Io, options: ApproveOptions): Promise<number> {
   const { manifest, diagnostics } = await readManifest(root);
   printDiagnostics(io, diagnostics);
   if (hasErrors(diagnostics)) {
@@ -111,20 +177,20 @@ async function approveCommand(root: string, io: Io, options: { only: string | un
   }
   const chosen: PendingApproval[] = [];
   for (const item of pending) {
-    io.stdout(`\n=== ${item.file} (${item.id}) ===\n${item.source}\n`);
+    io.stdout(`\n${await describePending(item, options.full)}\n`);
     if (item.edited) {
       io.stdout('this file was edited after generation; regenerate it with ccc tests instead\n');
       continue;
     }
-    if (options.yes || (io.confirm !== undefined && (await io.confirm(`approve tests for ${item.id}?`)))) {
+    if (options.yes || (await askApproval(io, item))) {
       chosen.push(item);
     }
   }
-  if (!options.yes && io.confirm === undefined) {
+  if (!options.yes && io.choose === undefined) {
     io.stdout('re-run with --yes to approve\n');
     return 1;
   }
-  approve(manifest, chosen);
+  await approve(manifest, chosen);
   await writeManifest(root, manifest);
   io.stdout(`approved ${chosen.length} of ${pending.length}\n`);
   return chosen.length === pending.length ? 0 : 1;
@@ -231,8 +297,9 @@ export async function main(argv: readonly string[], io: Io, services: Services =
     .description('review and approve generated test files')
     .option('-C, --dir <path>', 'project root', '.')
     .option('-y, --yes', 'approve without asking', false)
-    .action(async (concept: string | undefined, options: { dir: string; yes: boolean }) => {
-      exitCode = await approveCommand(rootOf(options.dir), io, { only: concept, yes: options.yes });
+    .option('--full', 'show whole test files instead of each example beside its assertions', false)
+    .action(async (concept: string | undefined, options: { dir: string; yes: boolean; full: boolean }) => {
+      exitCode = await approveCommand(rootOf(options.dir), io, { only: concept, yes: options.yes, full: options.full });
     });
   program
     .command('verify')

@@ -14,10 +14,15 @@ const io: Io = {
 };
 
 if (process.stdin.isTTY) {
-  io.confirm = async (question) => {
+  io.choose = async (question, choices) => {
     const readline = createInterface({ input: process.stdin, output: process.stdout });
     try {
-      return /^y(es)?$/i.test((await readline.question(`${question} [y/N] `)).trim());
+      for (;;) {
+        const answer = (await readline.question(`${question} `)).trim().toLowerCase().slice(0, 1);
+        if (choices.includes(answer)) {
+          return answer;
+        }
+      }
     } finally {
       readline.close();
     }
