@@ -113,7 +113,7 @@ async function approvedTestsOnDisk(root: string, manifest: Manifest, concept: Co
   if (entry === undefined || source === null || entry.approvedTestHash !== (await sha256(source))) {
     return null;
   }
-  return { source, kept: await keptTests(concept.examples, source, entry.approvedTests) };
+  return { source, kept: entry.approvedTests === null ? null : await keptTests(concept.examples, source, entry.approvedTests) };
 }
 
 async function planBuild(

@@ -23,8 +23,9 @@ const entrySchema = z.strictObject({
   testKey: z.string().nullable(),
   testFileHash: z.string().nullable(),
   approvedTestHash: z.string().nullable(),
-  // Per approved test: example text hash → test code hash (see approve.ts).
-  approvedTests: z.record(z.string(), z.string()).default({}),
+  // Per approved test: example text hash → test code hash (see approve.ts);
+  // null when the approval predates these records.
+  approvedTests: z.record(z.string(), z.string()).nullable().default(null),
   implKey: z.string().nullable(),
   history: z.array(generationSchema),
 });
@@ -60,7 +61,7 @@ export function entryFor(manifest: Manifest, id: ConceptId): ManifestEntry {
   if (existing !== undefined) {
     return existing;
   }
-  const created: ManifestEntry = { testKey: null, testFileHash: null, approvedTestHash: null, approvedTests: {}, implKey: null, history: [] };
+  const created: ManifestEntry = { testKey: null, testFileHash: null, approvedTestHash: null, approvedTests: null, implKey: null, history: [] };
   manifest.concepts[id] = created;
   return created;
 }

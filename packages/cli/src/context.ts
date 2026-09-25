@@ -94,22 +94,29 @@ function syncsSection(concept: Concept, project: Project, exportsByConcept: Expo
 // The test writer sees the whole concept (the same specification the
 // implementer gets), but never an implementation (spec §4.4).
 // The approved test file, when regenerating over one, and which of its
-// tests still match an unchanged example.
+// tests still match an unchanged example (null when the approval didn't
+// record which tests go with which examples).
 export interface PreviousTests {
   source: string;
-  kept: readonly KeptTest[];
+  kept: readonly KeptTest[] | null;
 }
 
 function approvedTestsSection(concept: Concept, previous: PreviousTests): string[] {
-  const keptExamples = new Set(previous.kept.map((k) => k.example));
-  const others = concept.examples.map((_, index) => index + 1).filter((n) => !keptExamples.has(n));
-  const plan =
-    previous.kept.length === 0
-      ? ['- Reuse the test for every example that is unchanged, exactly as written.']
-      : [
-          `- Copy these tests exactly, changing only their tags: ${previous.kept.map((k) => `[ex ${k.example}] (was [ex ${k.was}])`).join(', ')}.`,
-          ...(others.length === 0 ? [] : [`- Write the other tests new: ${others.map((n) => `[ex ${n}]`).join(', ')}.`]),
-        ];
+  const kept = previous.kept;
+  let plan: string[];
+  if (kept === null) {
+    plan = ['- Reuse the test for every example that is unchanged, exactly as written, and write tests for the rest.'];
+  } else if (kept.length === 0) {
+    plan = ['- None of its tests match the current examples: write every test new, using the approved file only for its shared setup.'];
+  } else {
+    const keptExamples = new Set(kept.map((k) => k.example));
+    const others = concept.examples.map((_, index) => index + 1).filter((n) => !keptExamples.has(n));
+    plan = [
+      `- Copy these tests exactly, changing only their tags: ${kept.map((k) => `[ex ${k.example}] (was [ex ${k.was}])`).join(', ')}.`,
+      ...(others.length === 0 ? [] : [`- Write the other tests new: ${others.map((n) => `[ex ${n}]`).join(', ')}.`]),
+      "- Don't copy the approved file's other tests: their examples changed or were removed.",
+    ];
+  }
   return [
     '## Approved tests',
     'A person reviewed and approved the current test file for this concept (below). Keep what they approved:',

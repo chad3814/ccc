@@ -37,8 +37,19 @@ describe('testRequest', () => {
   });
 
   it('asks to reuse unchanged examples\' tests when the approval did not record which match', () => {
+    const request = testRequest(hand, project, exportsByConcept, ['card'], { source: 'APPROVED FILE', kept: null });
+    expect(request).toContain('Reuse the test for every example that is unchanged, exactly as written, and write tests for the rest.');
+  });
+
+  it('asks for every test new when no approved test matches an example', () => {
     const request = testRequest(hand, project, exportsByConcept, ['card'], { source: 'APPROVED FILE', kept: [] });
-    expect(request).toContain('Reuse the test for every example that is unchanged, exactly as written.');
+    expect(request).toContain('None of its tests match the current examples: write every test new, using the approved file only for its shared setup.');
+    expect(request).not.toContain('Reuse the test');
+  });
+
+  it('says not to copy tests for examples that changed or were removed', () => {
+    const request = testRequest(hand, project, exportsByConcept, ['card'], { source: 'APPROVED FILE', kept: [{ example: 1, was: 2 }] });
+    expect(request).toContain("Don't copy the approved file's other tests: their examples changed or were removed.");
   });
 });
 

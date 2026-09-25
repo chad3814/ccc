@@ -131,7 +131,7 @@ export async function pendingApprovals(root: string, manifest: Manifest, only?: 
       edited: (await sha256(source)) !== entry.testFileHash,
       examples: concept?.examples ?? null,
       stale,
-      approved: entry.approvedTests,
+      approved: entry.approvedTests ?? {},
     });
   }
   return pending;
