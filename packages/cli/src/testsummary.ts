@@ -52,14 +52,16 @@ function isExpectStatement(statement: ts.ExpressionStatement): boolean {
 }
 
 // Joins a multi-line statement into one line, dropping the whitespace and
-// trailing commas that line breaks introduced inside parentheses.
+// trailing commas that line breaks introduced inside parentheses and brackets.
 function oneLine(text: string): string {
   return text
     .split('\n')
     .map((line) => line.trim())
     .join(' ')
-    .replace(/\(\s+/g, '(')
-    .replace(/,?\s+\)/g, ')');
+    .replace(/([([])\s+/g, '$1')
+    .replace(/,?\s+([)\]])/g, '$1')
+    .replace(/\{\s+/g, '{ ')
+    .replace(/,?\s+\}/g, ' }');
 }
 
 function dedent(text: string): string {

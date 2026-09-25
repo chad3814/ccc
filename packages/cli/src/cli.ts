@@ -100,18 +100,17 @@ async function buildCommand(root: string, io: Io, services: Services, options: B
 }
 
 const STATUS_WIDTH = 'unchanged'.length;
-const INDENT = ' '.repeat(`  [ex N] ${'x'.repeat(STATUS_WIDTH)}  `.length);
-
-function indented(text: string): string {
-  return text
-    .split('\n')
-    .map((line) => `${INDENT}${line}`)
-    .join('\n');
-}
 
 // One concept's tests as claims: each example beside its test's assertions.
 // Tests unchanged since the last approval collapse to their example.
-function formatReview(item: PendingApproval, reviewed: readonly ReviewedTest[], sharedChanged: boolean): string {
+export function formatReview(item: Pick<PendingApproval, 'id' | 'file'>, reviewed: readonly ReviewedTest[], sharedChanged: boolean): string {
+  const tagWidth = `[ex ${reviewed.length}]`.length;
+  const indent = ' '.repeat(2 + tagWidth + 1 + STATUS_WIDTH + 2);
+  const indented = (text: string): string =>
+    text
+      .split('\n')
+      .map((line) => `${indent}${line}`)
+      .join('\n');
   const counts = (['changed', 'new', 'unchanged'] as const)
     .map((status) => [status, reviewed.filter((r) => r.status === status).length] as const)
     .filter(([, count]) => count > 0)
@@ -119,7 +118,7 @@ function formatReview(item: PendingApproval, reviewed: readonly ReviewedTest[], 
   const lines = [`=== ${item.id} (${item.file}): ${reviewed.length} tests, ${counts.join(', ')} ===`];
   for (const r of reviewed) {
     const [first = '', ...rest] = r.text.split('\n');
-    lines.push(`  [ex ${r.example}] ${r.status.padEnd(STATUS_WIDTH)}  ${first}`, ...rest.map((line) => `${INDENT}${line.trim()}`));
+    lines.push(`  ${`[ex ${r.example}]`.padEnd(tagWidth)} ${r.status.padEnd(STATUS_WIDTH)}  ${first}`, ...rest.map((line) => `${indent}${line.trim()}`));
     if (r.status === 'unchanged') {
       continue;
     }

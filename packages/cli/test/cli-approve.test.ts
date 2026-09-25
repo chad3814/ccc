@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { runBuild } from '../src/build.js';
-import { main, type Io } from '../src/cli.js';
+import { formatReview, main, type Io } from '../src/cli.js';
 import { openPgDatabase } from '../src/dbreset.js';
 import { sha256 } from '../src/hash.js';
 import { readManifest, writeManifest } from '../src/manifest.js';
@@ -145,5 +145,14 @@ describe('ccc approve / verify', () => {
     expect(await main(['verify'], cap.io, services)).toBe(1);
     expect(cap.out()).toContain('.ccc/gen/hand.test.ts:1: error: tests are not approved; run ccc approve');
     expect(cap.out().trimEnd().split('\n').at(-1)).toBe('verify failed: 4 problem(s)');
+  });
+});
+
+describe('formatReview', () => {
+  it('aligns every row when tags reach two digits', () => {
+    const reviewed = Array.from({ length: 10 }, (_, i) => ({ example: i + 1, text: `example ${i + 1}`, status: 'unchanged' as const, test: null }));
+    const lines = formatReview({ id: 'x', file: 'x.test.ts' }, reviewed, false).split('\n');
+    expect(lines[1]).toBe('  [ex 1]  unchanged  example 1');
+    expect(lines[10]).toBe('  [ex 10] unchanged  example 10');
   });
 });

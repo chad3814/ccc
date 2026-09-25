@@ -52,6 +52,13 @@ describe('testCases', () => {
     expect(three?.assertions).toEqual(['await expect(load(c)).resolves.toEqual(c);']);
   });
 
+  it('joins multi-line arrays and objects without stray spaces', () => {
+    const source = "it('[ex 1] lists', () => {\n  expect(view.players).toEqual([\n    { id: 1 },\n    { id: 2 },\n  ]);\n});\n";
+    expect(testCases(source)[0]?.assertions).toEqual(['expect(view.players).toEqual([{ id: 1 }, { id: 2 }]);']);
+    const object = "it('[ex 1] has', () => {\n  expect(x).toContainEqual({\n    rank: 'A',\n    suit: '♠',\n  });\n});\n";
+    expect(testCases(object)[0]?.assertions).toEqual(["expect(x).toContainEqual({ rank: 'A', suit: '♠' });"]);
+  });
+
   it('keeps the whole body for a test with no expect statements', () => {
     const four = testCases(SOURCE)[3];
     expect(four?.assertions).toEqual([]);
