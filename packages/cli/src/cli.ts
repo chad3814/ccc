@@ -71,6 +71,7 @@ interface BuildCommandOptions {
   only: string | undefined;
   dryRun: boolean;
   testsOnly: boolean;
+  fresh: boolean;
 }
 
 async function buildCommand(root: string, io: Io, services: Services, options: BuildCommandOptions): Promise<number> {
@@ -80,6 +81,7 @@ async function buildCommand(root: string, io: Io, services: Services, options: B
     ...(options.only === undefined ? {} : { only: options.only }),
     dryRun: options.dryRun,
     testsOnly: options.testsOnly,
+    fresh: options.fresh,
     log: (line) => io.stdout(`${line}\n`),
   });
   printDiagnostics(io, result.diagnostics);
@@ -202,15 +204,27 @@ export async function main(argv: readonly string[], io: Io, services: Services =
     .description('generate tests and implementations for stale concepts')
     .option('-C, --dir <path>', 'project root', '.')
     .option('--dry-run', 'show what would be generated, without calling the LLM', false)
-    .action(async (concept: string | undefined, options: { dir: string; dryRun: boolean }) => {
-      exitCode = await buildCommand(rootOf(options.dir), io, services, { only: concept, dryRun: options.dryRun, testsOnly: false });
+    .option('--fresh', 'regenerate implementations even if they are current (tests are kept)', false)
+    .action(async (concept: string | undefined, options: { dir: string; dryRun: boolean; fresh: boolean }) => {
+      exitCode = await buildCommand(rootOf(options.dir), io, services, {
+        only: concept,
+        dryRun: options.dryRun,
+        testsOnly: false,
+        fresh: options.fresh,
+      });
     });
   program
     .command('tests [concept]')
     .description('generate tests only')
     .option('-C, --dir <path>', 'project root', '.')
-    .action(async (concept: string | undefined, options: { dir: string }) => {
-      exitCode = await buildCommand(rootOf(options.dir), io, services, { only: concept, dryRun: false, testsOnly: true });
+    .option('--fresh', 'regenerate tests even if they are current (they need approval again)', false)
+    .action(async (concept: string | undefined, options: { dir: string; fresh: boolean }) => {
+      exitCode = await buildCommand(rootOf(options.dir), io, services, {
+        only: concept,
+        dryRun: false,
+        testsOnly: true,
+        fresh: options.fresh,
+      });
     });
   program
     .command('approve [concept]')

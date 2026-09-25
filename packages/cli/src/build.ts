@@ -31,6 +31,10 @@ export interface BuildOptions {
   only?: ConceptId;
   dryRun?: boolean;
   testsOnly?: boolean;
+  // Regenerate `only` (or every concept) regardless of the cache: its tests
+  // when testsOnly, otherwise its implementation. Approved tests are never
+  // replaced by a fresh build.
+  fresh?: boolean;
   now?: () => number;
   log?: (line: string) => void;
 }
@@ -106,6 +110,7 @@ async function planBuild(
   versions: Versions,
   manifest: Manifest,
   scope: ReadonlySet<ConceptId>,
+  fresh: { tests: ReadonlySet<ConceptId>; impl: ReadonlySet<ConceptId> },
 ): Promise<Map<ConceptId, PlanState>> {
   const states = new Map<ConceptId, PlanState>();
   for (const id of [...scope].sort(compareIds)) {
@@ -116,11 +121,13 @@ async function planBuild(
     const entry = manifest.concepts[id];
     const key = await testKey(concept, project, exportsByConcept, versions);
     const testHash = await fileHash(root, testPath(id));
-    const tests = entry === undefined || entry.testKey !== key || testHash === null || testHash !== entry.testFileHash;
+    const tests =
+      fresh.tests.has(id) || entry === undefined || entry.testKey !== key || testHash === null || testHash !== entry.testFileHash;
     let impl = false;
     if (!isHandwritten(concept.frontmatter)) {
       impl =
         tests ||
+        fresh.impl.has(id) ||
         testHash === null ||
         !(await isModuleCurrent(root, manifest, concept, await implKey(concept, project, exportsByConcept, versions, testHash)));
     }
@@ -243,7 +250,10 @@ export async function runBuild(options: BuildOptions): Promise<BuildResult> {
   const exportsByConcept = collectExports(project);
   const versions = await loadVersions();
   const scope = options.only === undefined ? new Set(project.concepts.keys()) : buildClosure(project, options.only);
-  const states = await planBuild(root, project, exportsByConcept, versions, manifest, scope);
+  const freshIds = options.fresh === true ? (options.only === undefined ? scope : new Set([options.only])) : new Set<ConceptId>();
+  const none = new Set<ConceptId>();
+  const fresh = options.testsOnly === true ? { tests: freshIds, impl: none } : { tests: none, impl: freshIds };
+  const states = await planBuild(root, project, exportsByConcept, versions, manifest, scope, fresh);
   result.plan = [...states.values()].map((state) => state.item);
   if (options.dryRun === true) {
     result.ok = true;
@@ -339,7 +349,7 @@ export async function runBuild(options: BuildOptions): Promise<BuildResult> {
               return;
             }
             const key = await implKey(concept, project, exportsByConcept, versions, await sha256(testSource));
-            if (await isModuleCurrent(root, manifest, concept, key)) {
+            if (!fresh.impl.has(id) && (await isModuleCurrent(root, manifest, concept, key))) {
               return;
             }
             let outcome;

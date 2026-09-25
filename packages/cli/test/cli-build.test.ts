@@ -55,6 +55,13 @@ describe('ccc build / tests', () => {
     );
   });
 
+  it('plans implementations again with build --fresh', async () => {
+    const root = await createPipelineProject();
+    const cap = capture(root);
+    expect(await main(['build', '--fresh', '--dry-run', 'card'], cap.io, fakeServices())).toBe(0);
+    expect(cap.out()).toBe(['tests+impl  card', '2 generation(s) planned', ''].join('\n'));
+  });
+
   it('builds and logs progress', async () => {
     const root = await createPipelineProject();
     const cap = capture(root);
@@ -69,6 +76,14 @@ describe('ccc build / tests', () => {
     expect(await main(['tests', 'hand'], cap.io, fakeServices())).toBe(0);
     expect(cap.out()).toContain('tests  hand  generated in 1 attempt(s), pending approval');
     expect(cap.out()).not.toContain('impl ');
+  });
+
+  it('regenerates tests with ccc tests --fresh', async () => {
+    const root = await createPipelineProject();
+    expect(await main(['tests', 'hand'], capture(root).io, fakeServices())).toBe(0);
+    const cap = capture(root);
+    expect(await main(['tests', '--fresh', 'hand'], cap.io, fakeServices())).toBe(0);
+    expect(cap.out()).toContain('tests  hand  generated in 1 attempt(s), pending approval');
   });
 
   it('exits 1 for an unknown concept or a generator error, and 2 for unexpected errors', async () => {

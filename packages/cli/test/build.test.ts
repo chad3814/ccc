@@ -17,7 +17,7 @@ async function copyProject(root: string): Promise<string> {
   return copy;
 }
 
-async function build(root: string, overrides: Overrides = {}, extra: { only?: string; dryRun?: boolean; testsOnly?: boolean } = {}) {
+async function build(root: string, overrides: Overrides = {}, extra: { only?: string; dryRun?: boolean; testsOnly?: boolean; fresh?: boolean } = {}) {
   const fake = new FakeGenerator(pipelineResponder(overrides));
   const result = await runBuild({ root, generator: fake, ...extra });
   return { fake, result };
@@ -171,6 +171,37 @@ describe('runBuild', () => {
       { id: 'hand', tests: true, impl: true },
     ]);
     expect(await readFileOrNull(root, '.ccc/manifest.json')).toBeNull();
+  });
+
+  it('plans every implementation, but no tests, with --fresh', async () => {
+    const root = await copyProject(built);
+    const { fake, result } = await build(root, {}, { dryRun: true, fresh: true });
+    expect(fake.requests).toEqual([]);
+    expect(result.plan).toEqual([
+      { id: 'card', tests: false, impl: true },
+      { id: 'count-adds', tests: false, impl: true },
+      { id: 'counter', tests: false, impl: true },
+      { id: 'hand', tests: false, impl: true },
+    ]);
+  });
+
+  it('regenerates only the named concept\'s implementation with --fresh, keeping its tests', async () => {
+    const root = await copyProject(built);
+    const before = await readManifest(root);
+    const { fake, result } = await build(root, {}, { only: 'hand', fresh: true });
+    expect(result.ok).toBe(true);
+    expect(result.generated).toEqual({ tests: [], impl: ['hand'] });
+    expect(fake.requests).toHaveLength(1);
+    const after = await readManifest(root);
+    expect(after.manifest.concepts.hand?.testFileHash).toBe(before.manifest.concepts.hand?.testFileHash);
+    expect(after.manifest.concepts.hand?.history.map((g) => g.artifact)).toEqual(['tests', 'impl', 'impl']);
+  });
+
+  it('regenerates tests with ccc tests --fresh', async () => {
+    const root = await copyProject(built);
+    const { result } = await build(root, {}, { only: 'hand', fresh: true, testsOnly: true });
+    expect(result.ok).toBe(true);
+    expect(result.generated).toEqual({ tests: ['hand'], impl: [] });
   });
 
   it('keeps going after a failure, skipping only dependents', async () => {
