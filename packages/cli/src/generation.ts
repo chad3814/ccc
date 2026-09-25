@@ -7,6 +7,8 @@ export interface GenerationOutcome {
   source: string | null;
   record: Generation;
   problems: string[];
+  // Problems found at each attempt, in order ([] for a passing attempt).
+  attemptProblems: string[][];
 }
 
 export interface LoopOptions {
@@ -51,6 +53,7 @@ export async function generationLoop(options: LoopOptions): Promise<GenerationOu
   let model = options.model;
   let message = options.firstMessage;
   let problems: string[] = [];
+  const attemptProblems: string[][] = [];
   for (let attempt = 1; attempt <= options.maxAttempts; attempt++) {
     let turn;
     try {
@@ -62,8 +65,10 @@ export async function generationLoop(options: LoopOptions): Promise<GenerationOu
       // The SDK already retried transient failures; stop this artifact and
       // let the build carry on with the rest.
       const reason = err instanceof Error ? err.message : String(err);
+      attemptProblems.push([`generator error: ${reason}`]);
       return {
         source: null,
+        attemptProblems,
         problems: [`generator error: ${reason}`],
         record: generationRecord(options.artifact, started, options.now(), model, attempt, usage, 'failed'),
       };
@@ -72,9 +77,11 @@ export async function generationLoop(options: LoopOptions): Promise<GenerationOu
     usage.outputTokens += turn.usage.outputTokens;
     model = turn.model;
     problems = turn.code === null ? [`${turn.note}; call write_module with the complete file`] : await options.check(turn.code);
+    attemptProblems.push(problems);
     if (turn.code !== null && problems.length === 0) {
       return {
         source: turn.code,
+        attemptProblems,
         problems: [],
         record: generationRecord(options.artifact, started, options.now(), model, attempt, usage, 'passed'),
       };
@@ -83,6 +90,7 @@ export async function generationLoop(options: LoopOptions): Promise<GenerationOu
   }
   return {
     source: null,
+    attemptProblems,
     problems,
     record: generationRecord(options.artifact, started, options.now(), model, options.maxAttempts, usage, 'failed'),
   };

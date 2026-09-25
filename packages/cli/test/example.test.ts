@@ -1,9 +1,24 @@
+import { cp, mkdtemp } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { runBuild } from '../src/build.js';
 import { runCheck } from '../src/check.js';
 import { FakeGenerator } from './fake-generator.js';
+import { linkPackages } from './helpers.js';
+
+// A copy of the model without generated output, so a local `pnpm generate`
+// in the example doesn't change what a fresh build would plan.
+async function freshCopy(): Promise<string> {
+  const root = await mkdtemp(path.join(tmpdir(), 'ccc-example-'));
+  await cp(EXAMPLE, root, {
+    recursive: true,
+    filter: (source) => !/[\\/](\.ccc|node_modules)([\\/]|$)/.test(path.relative(EXAMPLE, source) === '' ? '' : `/${path.relative(EXAMPLE, source)}`),
+  });
+  await linkPackages(root, ['@ccc/runtime']);
+  return root;
+}
 
 const EXAMPLE = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../examples/card-game');
 
@@ -33,7 +48,7 @@ describe('examples/card-game', () => {
 
   it('plans a complete build without calling the model', async () => {
     const fake = new FakeGenerator(() => null);
-    const result = await runBuild({ root: EXAMPLE, generator: fake, dryRun: true });
+    const result = await runBuild({ root: await freshCopy(), generator: fake, dryRun: true });
     expect(result.ok).toBe(true);
     expect(fake.requests).toEqual([]);
     expect(result.plan.filter((item) => item.tests)).toHaveLength(16);

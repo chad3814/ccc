@@ -35,6 +35,7 @@ describe('generationLoop', () => {
       outcome: 'passed',
     });
     expect(fake.requests[1]?.messages[1]).toContain('- it is bad');
+    expect(outcome.attemptProblems).toEqual([['it is bad'], []]);
   });
 
   it('gives up after maxAttempts and keeps the last problems', async () => {

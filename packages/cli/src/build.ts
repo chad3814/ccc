@@ -14,7 +14,7 @@ import { implKey, testKey, type ExportsByConcept } from './keys.js';
 import { modulePath, testPath } from './layout.js';
 import { GeneratorUnavailable, type Generator } from './llm.js';
 import type { Project } from './load.js';
-import { entryFor, hashFiles, listCccFiles, readManifest, writeManifest, type Manifest } from './manifest.js';
+import { entryFor, hashFiles, listCccFiles, readManifest, writeManifest, type Manifest, type ManifestEntry } from './manifest.js';
 import type { Concept } from './parse.js';
 import { topologicalLevels } from './order.js';
 import { mapPool } from './pool.js';
@@ -136,11 +136,43 @@ function bullets(problems: readonly string[]): string {
     .join('\n');
 }
 
-function generationFailure(concept: Concept, artifact: 'tests' | 'impl', outcome: GenerationOutcome): Diagnostic {
+const FAILED_TEST = /^test failed: (\[ex \d+\])/;
+
+// When every attempt failed the same unapproved test, the test itself may be
+// wrong; no implementation can pass it, so say where to look.
+function unapprovedTestHint(concept: Concept, outcome: GenerationOutcome, entry: ManifestEntry | undefined): string | undefined {
+  const failing = outcome.attemptProblems.map(
+    (problems) =>
+      new Set(
+        problems.flatMap((problem) => {
+          const match = FAILED_TEST.exec(problem);
+          return match?.[1] === undefined ? [] : [match[1]];
+        }),
+      ),
+  );
+  const first = failing[0];
+  if (first === undefined || entry === undefined || entry.approvedTestHash === entry.testFileHash) {
+    return undefined;
+  }
+  const common = [...first].filter((tag) => failing.every((tags) => tags.has(tag)));
+  if (common.length === 0) {
+    return undefined;
+  }
+  return `every attempt failed ${common.join(', ')}, and these tests are not approved yet; review ${testPath(concept.id)}. If a test is wrong, delete the file and run \`ccc tests ${concept.id}\` to regenerate it`;
+}
+
+function generationFailure(
+  concept: Concept,
+  artifact: 'tests' | 'impl',
+  outcome: GenerationOutcome,
+  entry?: ManifestEntry,
+): Diagnostic {
   const what = artifact === 'tests' ? 'test' : 'implementation';
+  const hint = artifact === 'impl' ? unapprovedTestHint(concept, outcome, entry) : undefined;
   return error(
     concept.file,
     `${what} generation failed after ${outcome.record.attempts} attempt(s); last problems:\n${bullets(outcome.problems)}`,
+    hint === undefined ? {} : { hint },
   );
 }
 
@@ -318,7 +350,7 @@ export async function runBuild(options: BuildOptions): Promise<BuildResult> {
             entry.history.push(outcome.record);
             if (outcome.source === null) {
               failed.add(id);
-              result.diagnostics.push(generationFailure(concept, 'impl', outcome));
+              result.diagnostics.push(generationFailure(concept, 'impl', outcome, entry));
               log(`impl   ${id}  FAILED`);
               return;
             }
@@ -348,7 +380,9 @@ export async function runBuild(options: BuildOptions): Promise<BuildResult> {
         // Stage 6: the full suite, which exercises cross-concept behavior.
         const testFiles: string[] = [];
         for (const id of project.concepts.keys()) {
-          if ((await fileHash(root, testPath(id))) !== null) {
+          // Failed and skipped concepts were already reported; their tests
+          // would only add missing-module noise.
+          if (!failed.has(id) && !skipped.has(id) && (await fileHash(root, testPath(id))) !== null) {
             testFiles.push(testPath(id));
           }
         }

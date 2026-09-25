@@ -90,7 +90,7 @@ One table of High Card: players join, each is dealt a hand, and they play tricks
 - play() before dealing → throws GameNotStarted; play() by the player whose turn it isn't → throws NotYourTurn; play() by a user who isn't seated → throws NotSeated
 - given a dealt game, play(the player whose turn it is, a card that isn't in their hand) → throws CardNotInHand
 - given a dealt 2-player game, after both play a card from their hand, the player whose card beats the other's scores 1 point; the second play's result has trickComplete true and that trickWinner; the table is empty; and turn() is the trick winner
-- given a dealt 2-player game, after 5 complete tricks (each player plays in turn), status() is "finished", winner() has the most points (the earlier-seated player on a tie), the final result has finished true with the same winner, and another play throws GameFinished
+- given a dealt 2-player game, after 5 complete tricks (each play is made by whoever turn() names, until both players have played), status() is "finished", winner() has the most points (the earlier-seated player on a tie), the final result has finished true with the same winner, and another play throws GameFinished
 - Game.fromState(game.toState()) of a dealt game with one card played → view(each player) equals the original game's view(each player)
 - view(first player) of a dealt game → hand lists the first player's 5 cards, and players lists both players with cards 5 and points 0
 - view(a user who isn't seated) of a new 2-seat game → hand is [], players is [], turn is null, and status is "waiting"

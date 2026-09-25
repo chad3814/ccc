@@ -182,6 +182,19 @@ describe('runBuild', () => {
     expect(await readFileOrNull(root, modulePath('hand'))).toBeNull();
     expect(await readFileOrNull(root, modulePath('counter'))).toContain('export class Counter');
     expect(result.diagnostics.map((d) => d.message).join('\n')).toContain('implementation generation failed after 3 attempt(s)');
+    expect(result.diagnostics.filter((d) => d.message.startsWith('test file failed to run'))).toEqual([]);
+  }, 180_000);
+
+  it('points at an unapproved test when every attempt fails it', async () => {
+    const root = await createPipelineProject();
+    const good = CANNED_IMPL.hand ?? '';
+    const { result } = await build(root, {
+      'impl:hand': () => good.replace('throw new DuplicateCard', 'return; throw new DuplicateCard'),
+    });
+    const failure = result.diagnostics.find((d) => d.file === 'concepts/hand.md' && d.severity === 'error');
+    expect(failure?.hint).toBe(
+      'every attempt failed [ex 2], and these tests are not approved yet; review .ccc/gen/hand.test.ts. If a test is wrong, delete the file and run `ccc tests hand` to regenerate it',
+    );
   }, 180_000);
 
   it('retries a failing attempt within one build', async () => {
