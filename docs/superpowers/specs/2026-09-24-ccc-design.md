@@ -26,7 +26,7 @@ v1 is a **research prototype** for two developers (Chad and Chris). Its job is t
 3. Chris can clone the repo, read `docs/`, and add a concept without help.
 
 Status (2026-09-24):
-- **Criterion 1:** the card game is modeled completely (15 concepts). `ccc check` passes and the build plans 29 generations. The real build, approval, `verify`, and the smoke game need Claude credentials and are one command each (see `examples/card-game/README.md`).
+- **Criterion 1:** the card game is modeled completely (16 concepts). `ccc check` passes and the build plans 31 generations. The real build, approval, `verify`, and the smoke game need Claude credentials and are one command each (see `examples/card-game/README.md`).
 - **Criterion 2:** `stats` and `regen --compare` exist.
 - **Criterion 3:** `docs/` covers the schema, building, and the runtime.
 

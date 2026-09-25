@@ -23,6 +23,7 @@ describe('examples/card-game', () => {
       'game.player',
       'game.player.hand',
       'game.players',
+      'leaderboard-api',
       'leaderboard-store',
       'leaderboard',
       'record-winner',
@@ -35,8 +36,8 @@ describe('examples/card-game', () => {
     const result = await runBuild({ root: EXAMPLE, generator: fake, dryRun: true });
     expect(result.ok).toBe(true);
     expect(fake.requests).toEqual([]);
-    expect(result.plan.filter((item) => item.tests)).toHaveLength(15);
-    expect(result.plan.filter((item) => item.impl)).toHaveLength(14);
+    expect(result.plan.filter((item) => item.tests)).toHaveLength(16);
+    expect(result.plan.filter((item) => item.impl)).toHaveLength(15);
     expect(result.plan.find((item) => item.id === 'user')).toEqual({ id: 'user', tests: true, impl: false });
   });
 });

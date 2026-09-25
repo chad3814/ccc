@@ -43,4 +43,4 @@ Syncs are not transactional in this version. Adapters are bound to the app's `db
 
 ## Errors
 
-Throw `Invalid` (400), `Unauthorized` (401), `NotFound` (404), or `Conflict` (409), and endpoints answer with `errorResponse(err)`. Endpoints return `unmatched()` for routes they don't own, so the next endpoint can try.
+Throw `Invalid` (400), `Unauthorized` (401), `NotFound` (404), or `Conflict` (409), and endpoints answer with `errorResponse(err)`. Every endpoint answers routes it doesn't define with `unmatched()`, so the next endpoint can try; this is the convention, so concepts only describe the routes they own.

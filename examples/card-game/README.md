@@ -16,7 +16,7 @@ This whole game is defined as concepts in `concepts/`. The only hand-written cod
 | `auth` | auth | email/password, bearer tokens, owns `users` and `sessions` tables |
 | `game-store`, `leaderboard-store` | store | Postgres tables |
 | `record-winner` | sync | `game#play` → `leaderboard-store#recordWin` (domain → adapter) |
-| `auth-api`, `game-api` | endpoint | HTTP |
+| `auth-api`, `game-api`, `leaderboard-api` | endpoint | HTTP |
 
 ## Build it
 
@@ -26,7 +26,7 @@ Generation calls Claude, so it needs credentials: an `ANTHROPIC_API_KEY` in the 
 pnpm install && pnpm build                 # from the repo root: builds ccc itself
 cd examples/card-game
 pnpm check                                  # validate the model (no LLM)
-pnpm exec ccc build --dry-run               # 29 generations planned
+pnpm exec ccc build --dry-run               # 31 generations planned
 op run --env-file=.env -- pnpm generate     # generate (.env holds ANTHROPIC_API_KEY=op://…)
 pnpm approve                                # read and approve each generated test file
 pnpm verify-generated                       # CI gate: current, approved, passing
