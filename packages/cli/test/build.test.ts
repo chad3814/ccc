@@ -193,8 +193,19 @@ describe('runBuild', () => {
     });
     const failure = result.diagnostics.find((d) => d.file === 'concepts/hand.md' && d.severity === 'error');
     expect(failure?.hint).toBe(
-      'every attempt failed [ex 2], and these tests are not approved yet; review .ccc/gen/hand.test.ts. If a test is wrong, delete the file and run `ccc tests hand` to regenerate it',
+      'every attempt that ran the tests failed [ex 2], and these tests are not approved yet; review .ccc/gen/hand.test.ts. If a test is wrong, delete the file and run `ccc tests hand` to regenerate it',
     );
+  }, 180_000);
+
+  it('points at an unapproved test even when some attempts never reached the tests', async () => {
+    const root = await createPipelineProject();
+    const good = CANNED_IMPL.hand ?? '';
+    const failsTest = good.replace('throw new DuplicateCard', 'return; throw new DuplicateCard');
+    const { result } = await build(root, {
+      'impl:hand': (attempt) => (attempt === 2 ? 'export const broken: number = "x";\n' : failsTest),
+    });
+    const failure = result.diagnostics.find((d) => d.file === 'concepts/hand.md' && d.severity === 'error');
+    expect(failure?.hint).toContain('every attempt that ran the tests failed [ex 2]');
   }, 180_000);
 
   it('retries a failing attempt within one build', async () => {

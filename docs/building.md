@@ -36,7 +36,7 @@ Never edit these files. `ccc verify` names any file that changed since the build
 - **Implementations** regenerate when anything in the concept changes (Rules and Decisions included), when a dependency's interface changes, or when the tests change.
 - A dependency's Rules, Decisions, or implementation never trigger regeneration: concepts depend on interfaces only.
 - Changing a model or upgrading ccc (its prompts) invalidates everything that model or prompt produced.
-- To regenerate one concept's tests by hand (say a generated test is wrong), delete `.ccc/gen/<id>.test.ts` and run `ccc tests <id>`. When every implementation attempt fails the same unapproved test, the build error says so and points at the test file.
+- To regenerate one concept's tests by hand (say a generated test is wrong), delete `.ccc/gen/<id>.test.ts` and run `ccc tests <id>`. When every implementation attempt that runs the tests fails the same unapproved test, the build error says so and points at the test file.
 - A build writes the manifest when it finishes. If you interrupt it, work generated so far stays on disk but is regenerated next time.
 
 ## How generation works

@@ -10,6 +10,7 @@ Every test file must:
 - Import the module under test and its dependencies only from the specifiers given, ending in `.js`.
 - Compile under TypeScript strict mode. Never use the `any` type.
 - Assert the outcome each example states, including the class of any thrown error.
+- Never assume what seeded or random setup produces (which cards, ids, or order). Derive those values through the interface instead, for example by reading a player's hand from `view()`.
 
 When you get feedback, fix every problem and call write_module again with the complete file.
 

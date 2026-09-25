@@ -138,8 +138,10 @@ function bullets(problems: readonly string[]): string {
 
 const FAILED_TEST = /^test failed: (\[ex \d+\])/;
 
-// When every attempt failed the same unapproved test, the test itself may be
-// wrong; no implementation can pass it, so say where to look.
+// When every attempt that got as far as the tests failed the same unapproved
+// test (and at least two did), the test itself may be wrong; no
+// implementation can pass it, so say where to look. Attempts that failed
+// earlier (type errors, imports) never ran the tests and don't count.
 function unapprovedTestHint(concept: Concept, outcome: GenerationOutcome, entry: ManifestEntry | undefined): string | undefined {
   const failing = outcome.attemptProblems.map(
     (problems) =>
@@ -150,15 +152,16 @@ function unapprovedTestHint(concept: Concept, outcome: GenerationOutcome, entry:
         }),
       ),
   );
-  const first = failing[0];
-  if (first === undefined || entry === undefined || entry.approvedTestHash === entry.testFileHash) {
+  const ran = failing.filter((tags) => tags.size > 0);
+  const first = ran[0];
+  if (first === undefined || ran.length < 2 || entry === undefined || entry.approvedTestHash === entry.testFileHash) {
     return undefined;
   }
-  const common = [...first].filter((tag) => failing.every((tags) => tags.has(tag)));
+  const common = [...first].filter((tag) => ran.every((tags) => tags.has(tag)));
   if (common.length === 0) {
     return undefined;
   }
-  return `every attempt failed ${common.join(', ')}, and these tests are not approved yet; review ${testPath(concept.id)}. If a test is wrong, delete the file and run \`ccc tests ${concept.id}\` to regenerate it`;
+  return `every attempt that ran the tests failed ${common.join(', ')}, and these tests are not approved yet; review ${testPath(concept.id)}. If a test is wrong, delete the file and run \`ccc tests ${concept.id}\` to regenerate it`;
 }
 
 function generationFailure(
