@@ -40,6 +40,8 @@ describe('stats', () => {
         'cost by concept:',
         '  hand  $0.0900 (3 generation(s))',
         '  card  $0.0200 (2 generation(s))',
+        'by model:',
+        '  claude-opus-5  implementations: 3 (1 first-attempt, 33%), tests: 2 (2 first-attempt, 100%), $0.1100',
       ].join('\n'),
     );
   });
@@ -49,4 +51,27 @@ describe('stats', () => {
       'implementations: no generations yet\ntests: no generations yet\npending approvals: 0',
     );
   });
+
+  it('splits results by model and leaves generator errors out of pass rates', () => {
+    const manifest = emptyManifest();
+    const card = entryFor(manifest, 'card');
+    card.history.push(
+      { ...gen('tests', 1, 'failed', 0), inputTokens: 0, outputTokens: 0 },
+      { ...gen('tests', 2, 'passed', 0.001), model: 'claude-haiku-4-5-20251001' },
+      { ...gen('impl', 3, 'failed', 0.002), model: 'claude-haiku-4-5-20251001' },
+      gen('impl', 1, 'passed', 0.05),
+    );
+    const stats = computeStats(manifest);
+    expect(stats.generatorErrors).toBe(1);
+    expect(stats.tests.generations).toBe(1);
+    expect(stats.perModel.map((row) => [row.model, row.impl.generations, row.tests.generations])).toEqual([
+      ['claude-haiku-4-5', 1, 1],
+      ['claude-opus-5', 1, 0],
+    ]);
+    const text = formatStats(stats);
+    expect(text).toContain('generator errors (no model call, left out of pass rates): 1');
+    expect(text).toContain('  claude-haiku-4-5  implementations: 1 (0 first-attempt, 0%), tests: 1 (0 first-attempt, 0%), $0.0030');
+    expect(text).toContain('  claude-opus-5     implementations: 1 (1 first-attempt, 100%), tests: 0, $0.0500');
+  });
 });
+
