@@ -1,7 +1,7 @@
 import { readdir } from 'node:fs/promises';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { lintFiles, runTests, typecheckFiles, withScratch } from '../src/toolchain.js';
+import { lintFiles, runTests, typecheckFiles, vitestSettings, withScratch } from '../src/toolchain.js';
 import { writeProject } from './helpers.js';
 
 const CARD = 'export function card(rank: string): { rank: string } {\n  return { rank };\n}\n';
@@ -74,5 +74,13 @@ describe('withScratch', () => {
     const root = await project({});
     const seen = await withScratch(root, async (dir) => dir);
     expect(await readdir(path.dirname(seen))).toEqual([]);
+  });
+});
+
+describe('vitestSettings', () => {
+  it('gives generated tests and hooks a minute, since PGlite starts slowly under load', () => {
+    const settings = vitestSettings('/tmp/cache');
+    expect(settings.cacheDir).toBe('/tmp/cache');
+    expect(settings.test).toMatchObject({ testTimeout: 60_000, hookTimeout: 60_000 });
   });
 });

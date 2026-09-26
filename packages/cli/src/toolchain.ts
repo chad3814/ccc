@@ -178,6 +178,24 @@ function caseStatus(status: string): TestCase['status'] {
   return status === 'passed' ? 'passed' : status === 'failed' ? 'failed' : 'skipped';
 }
 
+// Tests that start an in-memory Postgres (PGlite) can take well over ten
+// seconds when the machine is busy, as it is when a build runs several test
+// processes at once; a timeout there would fail a correct implementation.
+const GENERATED_TEST_TIMEOUT_MS = 60_000;
+
+export function vitestSettings(cacheDir: string) {
+  return {
+    cacheDir,
+    test: {
+      globals: true,
+      include: ['.ccc/gen/**/*.test.ts'],
+      watch: false,
+      testTimeout: GENERATED_TEST_TIMEOUT_MS,
+      hookTimeout: GENERATED_TEST_TIMEOUT_MS,
+    },
+  };
+}
+
 export async function runTests(root: string, testFiles: readonly string[]): Promise<TestRun> {
   if (testFiles.length === 0) {
     return { cases: [], errors: [] };
@@ -186,10 +204,7 @@ export async function runTests(root: string, testFiles: readonly string[]): Prom
   return withScratch(root, async (dir) => {
     const config = path.join(dir, 'vitest.config.mjs');
     const report = path.join(dir, 'report.json');
-    const settings = {
-      cacheDir: path.join(dir, 'cache'),
-      test: { globals: true, include: ['.ccc/gen/**/*.test.ts'], watch: false, testTimeout: 10_000 },
-    };
+    const settings = vitestSettings(path.join(dir, 'cache'));
     await writeFile(config, `export default ${JSON.stringify(settings)};\n`);
     const { stdout, stderr } = await runAllowingFailure(
       [
