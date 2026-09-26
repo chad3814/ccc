@@ -51,7 +51,7 @@ describe('main', () => {
   it('prints the version and help without throwing', async () => {
     const version = captureIo(FIXTURE);
     expect(await main(['--version'], version.io)).toBe(0);
-    expect(version.out()).toBe('0.1.0\n');
+    expect(version.out()).toBe('0.2.0\n');
     const help = captureIo(FIXTURE);
     expect(await main(['--help'], help.io)).toBe(0);
     expect(help.out()).toContain('check');
