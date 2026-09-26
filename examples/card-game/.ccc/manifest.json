@@ -2,6 +2,7 @@
   "concepts": {
     "auth": {
       "approvedTestHash": "825f82274625a058bd75157a86dc306e7e3572209b985db8e50707ec81e64327",
+      "approvedTests": null,
       "history": [
         {
           "artifact": "tests",
@@ -122,6 +123,18 @@
           "model": "claude-opus-5",
           "outcome": "passed",
           "outputTokens": 4057
+        },
+        {
+          "artifact": "impl",
+          "at": "2026-09-26T01:36:00.677Z",
+          "attempts": 3,
+          "costUsd": 0.127077,
+          "durationMs": 114759,
+          "escalations": 1,
+          "inputTokens": 32808,
+          "model": "claude-sonnet-5",
+          "outcome": "passed",
+          "outputTokens": 11794
         }
       ],
       "implKey": "4062c738a07235bfd2edfc47fbf287ce65d8f8515c9941b464fc962a09ed7604",
@@ -130,6 +143,7 @@
     },
     "auth-api": {
       "approvedTestHash": "30cce2d82fac81024ffb8fc4b2098b5e24214d2aef37d5ae8d00e1bdbbab0825",
+      "approvedTests": null,
       "history": [
         {
           "artifact": "tests",
@@ -226,6 +240,18 @@
           "model": "claude-opus-5",
           "outcome": "passed",
           "outputTokens": 2306
+        },
+        {
+          "artifact": "impl",
+          "at": "2026-09-26T01:40:58.997Z",
+          "attempts": 2,
+          "costUsd": 0.041427,
+          "durationMs": 63866,
+          "escalations": 0,
+          "inputTokens": 11167,
+          "model": "claude-haiku-4-5-20251001",
+          "outcome": "passed",
+          "outputTokens": 6052
         }
       ],
       "implKey": "3b725db8bd86c92381eecd5c2c4b6d52c2a3108d5852ebeba0b01cc6c07a6703",
@@ -234,6 +260,7 @@
     },
     "card": {
       "approvedTestHash": "73d26604c9ec324c4ad2351af246c910b7d15d57a5c29aef7376240b7e21bcd8",
+      "approvedTests": null,
       "history": [
         {
           "artifact": "tests",
@@ -354,6 +381,18 @@
           "model": "claude-opus-5",
           "outcome": "passed",
           "outputTokens": 492
+        },
+        {
+          "artifact": "impl",
+          "at": "2026-09-26T01:35:28.668Z",
+          "attempts": 1,
+          "costUsd": 0.011386,
+          "durationMs": 32005,
+          "escalations": 0,
+          "inputTokens": 2161,
+          "model": "claude-haiku-4-5-20251001",
+          "outcome": "passed",
+          "outputTokens": 1845
         }
       ],
       "implKey": "98a2a558da19ca2120813e6e2dda6829b1b5e1732333a724d18644335af21f3f",
@@ -361,7 +400,21 @@
       "testKey": "475e4c5e926ce74f8463b3abc88b13eea6bc8f608fad2dee1f63fa35348cbd52"
     },
     "game": {
-      "approvedTestHash": "40a77a7ad5b98883822be8859a96121b88110e7ca6a681e6e6f7cec35dc7911f",
+      "approvedTestHash": "58af0034536db67b096caaf76bc908bea611ec285db0c9a4945301fa1b8c45b4",
+      "approvedTests": {
+        "087ab6217acf62abb09492954dda231544295748df5ebaa348896c9bdde289c2": "9c0e0c24d22a39cee70a935273f33ab4b9f171ed8bee056b4aff52845f11a732",
+        "09ad11a096ba22315f5cf05a9a78ee4f768cf2c3eac1d3fe2cffc1073a6917b5": "ca9b225579bd65306793e814cf01696735abdec547215abb6841f795ec4ebb4b",
+        "22bbdc06d4ee1c61b46f143ec3954799b559022c681d1ff3d3252b9ad821de5a": "df739c1ebd48612847f808e9308834ac56153b61758dce0787455b716f2eb79e",
+        "2c732f50f3b8daa68932ff03751b0254da4c020e1d33243e34079e4ef75496e7": "5d7666c128ef56e1a44fd7b313583797ece3bb3167ad028b2f10110f7a0d2aa5",
+        "6ceaf5e409bced8e301997889060cd87d4a8f8fda164313dd1da73cb42d343fb": "c422ddd093ac12657d03f30a3c57883540524f946ef8066f25a85314cfbe5c19",
+        "7462bdcbf9aa9f9f867f42d06e5742d5e2cc6ce4b224cfcc462cf92e27583bca": "bb54ac371bd42ce6e6bf3c352a1644127411446f7bc392197ef2c7d79d56c298",
+        "7e457958e90dde3a0243f9a7ce4722cf036ec6eeb1c6fd764be3338731fe8aa4": "fddeae96133627ce329ae89dbb184acd1fa3a344c1ce73fe78f238cfdf6ac004",
+        "80d671ad3d0553c6945c91f30f75c78c84f17878330f97ad97c18f2f45339d3d": "0053ab4857394a437be00b1c6fc58f3245873416a04a9d17dbcf7fe9e95dee59",
+        "8be138e2caf5938506b148ecce54f8ffec84c0647e73bf7916417af08503b874": "baf088220b31b0458f9ceda580bb7e2acc597c6eb7ef0bc6392746fc0991e355",
+        "91f9be8897dbe4673f4ac31b32c9c654734e336b07ba32e24d65c373cb163d72": "5873bfd2e08aa6bb5c8182dd003bfab1d79119c3750adb3e021b56832442ae3e",
+        "e838293a8d881133887df22aa2b6ac75bbfa013e3886d01d245f1233b08af490": "b348f902406f0cac51116a03c665ceea79b110f9501acf7051caedd34cad8ac9",
+        "shared": "448183069127c7c9d2fa26dd6d1bfe3d3eedf5100182c2c966c1ac33e62ae243"
+      },
       "history": [
         {
           "artifact": "tests",
@@ -506,14 +559,51 @@
           "model": "claude-opus-5",
           "outcome": "passed",
           "outputTokens": 8239
+        },
+        {
+          "artifact": "impl",
+          "at": "2026-09-26T01:38:58.485Z",
+          "attempts": 2,
+          "costUsd": 0.093917,
+          "durationMs": 92892,
+          "escalations": 0,
+          "inputTokens": 22202,
+          "model": "claude-haiku-4-5-20251001",
+          "outcome": "passed",
+          "outputTokens": 14343
+        },
+        {
+          "artifact": "tests",
+          "at": "2026-09-26T02:21:32.011Z",
+          "attempts": 1,
+          "costUsd": 0.04507,
+          "durationMs": 23202,
+          "escalations": 0,
+          "inputTokens": 6630,
+          "model": "claude-sonnet-5",
+          "outcome": "passed",
+          "outputTokens": 3181
+        },
+        {
+          "artifact": "impl",
+          "at": "2026-09-26T02:21:55.867Z",
+          "attempts": 2,
+          "costUsd": 0.098881,
+          "durationMs": 138190,
+          "escalations": 0,
+          "inputTokens": 23776,
+          "model": "claude-haiku-4-5-20251001",
+          "outcome": "passed",
+          "outputTokens": 15021
         }
       ],
-      "implKey": "c1e3e0e8d38d235a46a8c676430fcdf604bd6925da1cc6c779d8eb0c9a0290dd",
-      "testFileHash": "40a77a7ad5b98883822be8859a96121b88110e7ca6a681e6e6f7cec35dc7911f",
-      "testKey": "ea71d78fb7721acfe007e87c1151d606a977c5a5abe48315a2dd4a3e3e60043d"
+      "implKey": "c85f8a522c71bea018c3ff30ab32d703a9f1b3e617e359970b93cdbb9c58ee28",
+      "testFileHash": "58af0034536db67b096caaf76bc908bea611ec285db0c9a4945301fa1b8c45b4",
+      "testKey": "10577942e6ab0f05fd546eb3c1a95bc70b941fc8a8e80d127bb8fba187b66144"
     },
     "game-api": {
       "approvedTestHash": "58297fd88f8b336d0474f1afd864d6d3a4a7da36867d91d63dad709f10077f4b",
+      "approvedTests": null,
       "history": [
         {
           "artifact": "tests",
@@ -610,6 +700,30 @@
           "model": "claude-opus-5",
           "outcome": "passed",
           "outputTokens": 5217
+        },
+        {
+          "artifact": "impl",
+          "at": "2026-09-26T01:40:58.994Z",
+          "attempts": 8,
+          "costUsd": 4.054623,
+          "durationMs": 1213312,
+          "escalations": 2,
+          "inputTokens": 551416,
+          "model": "claude-opus-5",
+          "outcome": "failed",
+          "outputTokens": 112927
+        },
+        {
+          "artifact": "impl",
+          "at": "2026-09-26T02:37:38.059Z",
+          "attempts": 2,
+          "costUsd": 0.073222,
+          "durationMs": 83432,
+          "escalations": 0,
+          "inputTokens": 20522,
+          "model": "claude-haiku-4-5-20251001",
+          "outcome": "passed",
+          "outputTokens": 10540
         }
       ],
       "implKey": "5eb5c967465ebc8a53902a7639e145d0d2f2273d8d2d351fe61c5c3639e72278",
@@ -618,6 +732,7 @@
     },
     "game-store": {
       "approvedTestHash": "c9040b8ac14b17089be8cc9c80d1f53e1090b5aa79ea5e4e927eac98ec767f20",
+      "approvedTests": null,
       "history": [
         {
           "artifact": "tests",
@@ -714,6 +829,18 @@
           "model": "claude-opus-5",
           "outcome": "passed",
           "outputTokens": 588
+        },
+        {
+          "artifact": "impl",
+          "at": "2026-09-26T01:40:31.381Z",
+          "attempts": 2,
+          "costUsd": 0.017314,
+          "durationMs": 27611,
+          "escalations": 0,
+          "inputTokens": 6884,
+          "model": "claude-haiku-4-5-20251001",
+          "outcome": "passed",
+          "outputTokens": 2086
         }
       ],
       "implKey": "87e053c3ec4ceab0a3110c4eec371fd7e9d477fd419510eb47253626f0b4fae7",
@@ -722,6 +849,7 @@
     },
     "game.deal-on-full-table": {
       "approvedTestHash": "9a2bc8daa49e594c7d7d0f666285645c0486ce393c3996294de1fb9290c8910c",
+      "approvedTests": null,
       "history": [
         {
           "artifact": "tests",
@@ -818,6 +946,18 @@
           "model": "claude-opus-5",
           "outcome": "passed",
           "outputTokens": 360
+        },
+        {
+          "artifact": "impl",
+          "at": "2026-09-26T01:40:31.385Z",
+          "attempts": 1,
+          "costUsd": 0.007125,
+          "durationMs": 11220,
+          "escalations": 0,
+          "inputTokens": 2220,
+          "model": "claude-haiku-4-5-20251001",
+          "outcome": "passed",
+          "outputTokens": 981
         }
       ],
       "implKey": "d77b2473bfc98df417f4264949ce339f90721d33d1b4f8df4c9b1665533cfebc",
@@ -826,6 +966,7 @@
     },
     "game.deck": {
       "approvedTestHash": "9a33eb93e177a14643badfbd75e8a88963737448f08e29d61b06e4434e11ba36",
+      "approvedTests": null,
       "history": [
         {
           "artifact": "tests",
@@ -946,6 +1087,18 @@
           "model": "claude-opus-5",
           "outcome": "passed",
           "outputTokens": 963
+        },
+        {
+          "artifact": "impl",
+          "at": "2026-09-26T01:36:00.676Z",
+          "attempts": 1,
+          "costUsd": 0.022803,
+          "durationMs": 27977,
+          "escalations": 0,
+          "inputTokens": 2458,
+          "model": "claude-haiku-4-5-20251001",
+          "outcome": "passed",
+          "outputTokens": 4069
         }
       ],
       "implKey": "ce83d1186dd946c78ccad6909f70f89ff0e439b985da59c51232804cbb576d5e",
@@ -954,6 +1107,7 @@
     },
     "game.player": {
       "approvedTestHash": "04bb89cde411835514d0d1f32d3757d7917b429fd90ccfc440ad135d13d5f065",
+      "approvedTests": null,
       "history": [
         {
           "artifact": "tests",
@@ -1074,6 +1228,18 @@
           "model": "claude-opus-5",
           "outcome": "passed",
           "outputTokens": 251
+        },
+        {
+          "artifact": "impl",
+          "at": "2026-09-26T01:37:55.442Z",
+          "attempts": 1,
+          "costUsd": 0.007623,
+          "durationMs": 12353,
+          "escalations": 0,
+          "inputTokens": 1848,
+          "model": "claude-haiku-4-5-20251001",
+          "outcome": "passed",
+          "outputTokens": 1155
         }
       ],
       "implKey": "c761929e78f6da24798577c2794f7004523902b04d902197e7480d28bd703a6a",
@@ -1082,6 +1248,7 @@
     },
     "game.player.hand": {
       "approvedTestHash": "1a514b2fb143771f4745ebb7b31e03674132e134fcae3f3d8e88beaaeba151c2",
+      "approvedTests": null,
       "history": [
         {
           "artifact": "tests",
@@ -1202,6 +1369,18 @@
           "model": "claude-opus-5",
           "outcome": "passed",
           "outputTokens": 593
+        },
+        {
+          "artifact": "impl",
+          "at": "2026-09-26T01:36:00.680Z",
+          "attempts": 2,
+          "costUsd": 0.014543,
+          "durationMs": 18339,
+          "escalations": 0,
+          "inputTokens": 5773,
+          "model": "claude-haiku-4-5-20251001",
+          "outcome": "passed",
+          "outputTokens": 1754
         }
       ],
       "implKey": "9c981d0d14f3fab4b85068e197ce380c1674e13debde369e1f1da1d23defea7c",
@@ -1210,6 +1389,7 @@
     },
     "game.players": {
       "approvedTestHash": "546a1083bfea828c2a2fcf79c866e173682ac9805041b3a684f3b3a746cb849b",
+      "approvedTests": null,
       "history": [
         {
           "artifact": "tests",
@@ -1330,6 +1510,18 @@
           "model": "claude-opus-5",
           "outcome": "passed",
           "outputTokens": 527
+        },
+        {
+          "artifact": "impl",
+          "at": "2026-09-26T01:38:29.584Z",
+          "attempts": 2,
+          "costUsd": 0.020651,
+          "durationMs": 28899,
+          "escalations": 0,
+          "inputTokens": 6506,
+          "model": "claude-haiku-4-5-20251001",
+          "outcome": "passed",
+          "outputTokens": 2829
         }
       ],
       "implKey": "1c4ee31481340a23aa24861128743eefc978c3e190565bf3af40964b529c51d8",
@@ -1338,6 +1530,7 @@
     },
     "leaderboard": {
       "approvedTestHash": "75a36dba92b983a8d710f5ef2e237728ed46fbe202de29696921feabd550dc64",
+      "approvedTests": null,
       "history": [
         {
           "artifact": "tests",
@@ -1458,6 +1651,18 @@
           "model": "claude-opus-5",
           "outcome": "passed",
           "outputTokens": 513
+        },
+        {
+          "artifact": "impl",
+          "at": "2026-09-26T01:36:00.679Z",
+          "attempts": 1,
+          "costUsd": 0.013382,
+          "durationMs": 21345,
+          "escalations": 0,
+          "inputTokens": 1862,
+          "model": "claude-haiku-4-5-20251001",
+          "outcome": "passed",
+          "outputTokens": 2304
         }
       ],
       "implKey": "a4ed5fcd6925bf450dd9bada843eb210b23644bce9727b2976179ecbaed5adb1",
@@ -1466,6 +1671,7 @@
     },
     "leaderboard-api": {
       "approvedTestHash": "d103e0b9db9390d9ee37d29a46a651213ab3d945d11429ba732232ee86b3fa11",
+      "approvedTests": null,
       "history": [
         {
           "artifact": "tests",
@@ -1562,6 +1768,18 @@
           "model": "claude-opus-5",
           "outcome": "passed",
           "outputTokens": 2313
+        },
+        {
+          "artifact": "impl",
+          "at": "2026-09-26T01:40:58.996Z",
+          "attempts": 2,
+          "costUsd": 0.018671,
+          "durationMs": 27414,
+          "escalations": 0,
+          "inputTokens": 6576,
+          "model": "claude-haiku-4-5-20251001",
+          "outcome": "passed",
+          "outputTokens": 2419
         }
       ],
       "implKey": "25f84131ded943d0efc42c47a7506ef34c8324fa3f9c71186b61bd526f536e96",
@@ -1570,6 +1788,7 @@
     },
     "leaderboard-store": {
       "approvedTestHash": "b3c17be55f0cc2a1c4c3ea618fd156e712b584b3d8624277a03d9c6984e4f035",
+      "approvedTests": null,
       "history": [
         {
           "artifact": "tests",
@@ -1702,6 +1921,18 @@
           "model": "claude-opus-5",
           "outcome": "passed",
           "outputTokens": 1028
+        },
+        {
+          "artifact": "impl",
+          "at": "2026-09-26T01:37:55.439Z",
+          "attempts": 2,
+          "costUsd": 0.028162,
+          "durationMs": 34142,
+          "escalations": 0,
+          "inputTokens": 8202,
+          "model": "claude-haiku-4-5-20251001",
+          "outcome": "passed",
+          "outputTokens": 3992
         }
       ],
       "implKey": "299d308733cb8f646d4fcc96f9b94f8704e3e438ce0d1e3aa612752237f28b5d",
@@ -1710,6 +1941,7 @@
     },
     "record-winner": {
       "approvedTestHash": "c1c3ac6c7589621e419e80331286c463d40464665a4ba5848b525f1dd59707c9",
+      "approvedTests": null,
       "history": [
         {
           "artifact": "tests",
@@ -1806,6 +2038,18 @@
           "model": "claude-opus-5",
           "outcome": "passed",
           "outputTokens": 295
+        },
+        {
+          "artifact": "impl",
+          "at": "2026-09-26T01:40:31.382Z",
+          "attempts": 1,
+          "costUsd": 0.006529,
+          "durationMs": 12122,
+          "escalations": 0,
+          "inputTokens": 2339,
+          "model": "claude-haiku-4-5-20251001",
+          "outcome": "passed",
+          "outputTokens": 838
         }
       ],
       "implKey": "373a78fa9dc1259b4bbbd1dd8be297f6d13767198e8a52106e5a17e30917bb82",
@@ -1814,6 +2058,7 @@
     },
     "user": {
       "approvedTestHash": "d30df3efd47df47e928313dd54af4f09172cad7a73848ed5e21b824c157dc4c2",
+      "approvedTests": null,
       "history": [
         {
           "artifact": "tests",
@@ -1913,50 +2158,50 @@
     ".ccc/conformance/user.ts": "d9d80141df169063a9be3b7d8951423db58044fec920fbe2d7e885458cf1b609",
     ".ccc/gen/auth-api.contract.d.ts": "8d476756517ed9f9ce23c666415a84b4a379e6d66462bc0411888a2a74cf2812",
     ".ccc/gen/auth-api.test.ts": "30cce2d82fac81024ffb8fc4b2098b5e24214d2aef37d5ae8d00e1bdbbab0825",
-    ".ccc/gen/auth-api.ts": "234ce04f1d3de64cd47a3fc6689f4164fd8a1e294e09f057331457bd57282c22",
+    ".ccc/gen/auth-api.ts": "eb32c67a547d8d4d4d0a2745ad30bf3d62595d5fb7d11c8c5291034d70a7a692",
     ".ccc/gen/auth.contract.d.ts": "bc654856021c62c14d8a55839a9f9523bbb5680140f8246b59607ae08392e803",
     ".ccc/gen/auth.test.ts": "825f82274625a058bd75157a86dc306e7e3572209b985db8e50707ec81e64327",
-    ".ccc/gen/auth.ts": "52eb7849e3589e3b84ce597b59977203afee3b9005a291692a9240eaadffdf34",
+    ".ccc/gen/auth.ts": "b27189636664daaa78c37ee1e40b43e45fc6565ad2d4193990de9f3e69678458",
     ".ccc/gen/card.contract.d.ts": "d669366cfb9d9e50f0d81d5e74a23a9640c50b04d31839c48d9cd56714a099b1",
     ".ccc/gen/card.test.ts": "73d26604c9ec324c4ad2351af246c910b7d15d57a5c29aef7376240b7e21bcd8",
-    ".ccc/gen/card.ts": "d188cbb69b68f8e604e506db277e846e4ef3a4183c1ffe5aca740f9b8eff9fa1",
+    ".ccc/gen/card.ts": "f286a0f9b6a947cac15b65e9f72128e644c5dab083867d4ae98bd89d3c23abf2",
     ".ccc/gen/game-api.contract.d.ts": "22f48465a857e29d23f01184e4fbd5276776736eff46e8aa7d43b7a7f56595fa",
     ".ccc/gen/game-api.test.ts": "58297fd88f8b336d0474f1afd864d6d3a4a7da36867d91d63dad709f10077f4b",
-    ".ccc/gen/game-api.ts": "376d3f237acf71e369e81d48d9630595885dfbec13cfb7997aa6c56e4ffa9835",
+    ".ccc/gen/game-api.ts": "6955f53fd55a9c43343637beae2749e37f59d563c2963b342f8a3ec58f1d0d3f",
     ".ccc/gen/game-store.contract.d.ts": "30dd464bcd9d3402ea08cbe683437753f8cbc9d7583ee158e78839e88210571c",
     ".ccc/gen/game-store.test.ts": "c9040b8ac14b17089be8cc9c80d1f53e1090b5aa79ea5e4e927eac98ec767f20",
-    ".ccc/gen/game-store.ts": "8c50d767461103cbfc34eaa7d1733c3e24106d5ba3372f8fd4691b5960f9aa57",
+    ".ccc/gen/game-store.ts": "8d6abfa11048cb3deb5c1d1d73eb01854efb68960eef370f58e555cce67dc319",
     ".ccc/gen/game.contract.d.ts": "5d39442b660c22a6461499758e3e0532fc1ea78d45d708aa03dccfb966be756e",
-    ".ccc/gen/game.test.ts": "40a77a7ad5b98883822be8859a96121b88110e7ca6a681e6e6f7cec35dc7911f",
-    ".ccc/gen/game.ts": "d55199fa9be2c4f83b193f5c8058c4b45395a7a8032df981745d19d4259a17e7",
+    ".ccc/gen/game.test.ts": "58af0034536db67b096caaf76bc908bea611ec285db0c9a4945301fa1b8c45b4",
+    ".ccc/gen/game.ts": "44d147bf43e7fa748e24841706c9d58309d18b977dd029d509efe284bf69ce30",
     ".ccc/gen/game/deal-on-full-table.contract.d.ts": "44995bf0242e25c7e194216c640b761477a1cbdfc7b701c7e2127eff37c1c4d1",
     ".ccc/gen/game/deal-on-full-table.test.ts": "9a2bc8daa49e594c7d7d0f666285645c0486ce393c3996294de1fb9290c8910c",
-    ".ccc/gen/game/deal-on-full-table.ts": "4cbfba403ebf0b0bd5980f60e09143b78e61c35cea247a56f42234ae045e0943",
+    ".ccc/gen/game/deal-on-full-table.ts": "a0b65c326fe36e158bdf1f587928c5cffb08503e68fa44dc81b2ff31853a3628",
     ".ccc/gen/game/deck.contract.d.ts": "a3d4bbf1eb4c07b5e806859cb96494171b7d9619c52c8e58fcf5b9722946faae",
     ".ccc/gen/game/deck.test.ts": "9a33eb93e177a14643badfbd75e8a88963737448f08e29d61b06e4434e11ba36",
-    ".ccc/gen/game/deck.ts": "20e4b67880279262513ac9c16708866370504c054fd80d38e8bf820c3e5ecdfe",
+    ".ccc/gen/game/deck.ts": "7a3a61a4cf90e48f35f2da95f4e648b3132ce531434f09024d92ff7bc7d2a96b",
     ".ccc/gen/game/player.contract.d.ts": "e7575e018d7d0a19178d62a7b4a2cd2d6b87dd8b881d800f28e5a385df5f5449",
     ".ccc/gen/game/player.test.ts": "04bb89cde411835514d0d1f32d3757d7917b429fd90ccfc440ad135d13d5f065",
-    ".ccc/gen/game/player.ts": "acd5507610b926b0ddc064a5b5db014508d33624581326e2412d9b0193879524",
+    ".ccc/gen/game/player.ts": "5f5abdf76066371b73163ed4534e7355a07d8e0b595f79b2cc6722d2729861df",
     ".ccc/gen/game/player/hand.contract.d.ts": "355907dfcb83566a0b8775bdc52f8f277657a8932d43a2c948b3b1f1553b5eaf",
     ".ccc/gen/game/player/hand.test.ts": "1a514b2fb143771f4745ebb7b31e03674132e134fcae3f3d8e88beaaeba151c2",
-    ".ccc/gen/game/player/hand.ts": "803cc5856bd01c0302443210359bf7b0c2b76c252096c2910445633632aa6486",
+    ".ccc/gen/game/player/hand.ts": "470edb89f70ad6b62914d1c545fcb7088095de0fa6ea5bbae0d819e3a790aadc",
     ".ccc/gen/game/players.contract.d.ts": "28f5ef02a18688e3eb871c7c715ff4ea0940fa83086ffd6f7d5d628ae31d3588",
     ".ccc/gen/game/players.test.ts": "546a1083bfea828c2a2fcf79c866e173682ac9805041b3a684f3b3a746cb849b",
-    ".ccc/gen/game/players.ts": "c955f6e48ffd2f549e72862a1d42670549c459838077d1fb512f89245742bbbe",
+    ".ccc/gen/game/players.ts": "9b66be460564819b4213c20fee22a0f94dfb02423f4a9245ee552509ca75ac64",
     ".ccc/gen/leaderboard-api.contract.d.ts": "234894b81ece40f90c8801cdf55f1027b6107fddacec26d3e6b1fad6036443da",
     ".ccc/gen/leaderboard-api.test.ts": "d103e0b9db9390d9ee37d29a46a651213ab3d945d11429ba732232ee86b3fa11",
-    ".ccc/gen/leaderboard-api.ts": "78151b5e78060111dbf9970491e6ae1cf4a44bb4eb680225bc4897451fdc4142",
+    ".ccc/gen/leaderboard-api.ts": "a7f729ce88a36afbd8aa6276ed9b2e2dfd0e68df662a2e2d89559802ae2e4f17",
     ".ccc/gen/leaderboard-store.contract.d.ts": "ed46215b9264adcbe159856d4d311cc0dfd9007a744453ee71ba8f941b60b166",
     ".ccc/gen/leaderboard-store.test.ts": "b3c17be55f0cc2a1c4c3ea618fd156e712b584b3d8624277a03d9c6984e4f035",
-    ".ccc/gen/leaderboard-store.ts": "8f043512d521d08b7486ece3365921590aa2510679b8b66c775c9d1fb3a840ea",
+    ".ccc/gen/leaderboard-store.ts": "bb38ecd5a7fc6e00b182ee47ec7e4093b088051d2eaed01a5d1430cf46cdfebd",
     ".ccc/gen/leaderboard.contract.d.ts": "9126d0e293cf9816de80c9144c6c9bcbea63e9728597f04e16f9ca44504d3a33",
     ".ccc/gen/leaderboard.test.ts": "75a36dba92b983a8d710f5ef2e237728ed46fbe202de29696921feabd550dc64",
-    ".ccc/gen/leaderboard.ts": "bd00f7180f7ea970a94036e1898f5959224e7e2dfd25a69f64a9b714d443c60e",
+    ".ccc/gen/leaderboard.ts": "b5f9a9c69e8ecf591ffb79dd4888c66464a69d04b0aeb65e0aedfe3c3dd67a4f",
     ".ccc/gen/main.ts": "214f65f351ba7861a3de6e648259f38384420df284b2fcf7752579b60b3a0458",
     ".ccc/gen/record-winner.contract.d.ts": "0bd07d6983d9921bb4f1d3b0c9d72327688726f1f9b6485a54a692632261f1e8",
     ".ccc/gen/record-winner.test.ts": "c1c3ac6c7589621e419e80331286c463d40464665a4ba5848b525f1dd59707c9",
-    ".ccc/gen/record-winner.ts": "cb081e1e78cc55aebe35590483db1548863b0bc7f1192ea04c9b3cb1fdf97c72",
+    ".ccc/gen/record-winner.ts": "c84a0e0b74e24932bde7119fa4113aa6db693cbc6c150fc9b2c8ee5464821ba0",
     ".ccc/gen/schema.sql": "dd2fc3d2c6a4b9875526684c9a175756e2e1a57500792428c6a6ff60c06742da",
     ".ccc/gen/schema.ts": "dc571fa1fd32d2207baaf806c2ae689befbceac2caecc804036a8c6e6f6733fe",
     ".ccc/gen/server.ts": "ccdb4c11b44885467028d7c1ff921c83fe1624fdca0400ab50fa14e2fb638f3e",

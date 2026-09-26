@@ -164,7 +164,21 @@ describe('game', () => {
     expect(restored.view(BOB)).toEqual(game.view(BOB));
   });
 
-  it('[ex 9] a player sees their own hand and both players as counts', () => {
+  it('[ex 9] a game restored from state with only one player joined is still waiting, and can be completed', () => {
+    const game = new Game('g1', 2, 7);
+    game.players.join(ALICE);
+
+    const restored = Game.fromState(game.toState());
+
+    expect(restored.status()).toBe('waiting');
+
+    restored.players.join(BOB);
+    restored.deal();
+
+    expect(restored.status()).toBe('playing');
+  });
+
+  it('[ex 10] a player sees their own hand and both players as counts', () => {
     const game = dealtGame();
     const alice = game.players.byUser(ALICE);
     if (alice === undefined) throw new Error('alice is not seated');
@@ -179,7 +193,7 @@ describe('game', () => {
     ]);
   });
 
-  it('[ex 10] an unseated viewer of a new game sees nothing', () => {
+  it('[ex 11] an unseated viewer of a new game sees nothing', () => {
     const game = new Game('g1', 2, 7);
 
     const view = game.view(CAROL);
