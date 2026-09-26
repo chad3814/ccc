@@ -71,6 +71,8 @@ Each artifact gets one conversation with Claude. The generated code is checked, 
 
   A failing implementation is never kept; the previous version is restored.
 
+Before regenerating an implementation whose tests didn't change, the build checks whether the current implementation, which passed those tests before, fails them now. If it does, and implementations it depends on were regenerated earlier in the same build, a dependency changed behavior. No rewrite of this concept can fix that, so the build doesn't try. It fails the concept, lists the dependencies regenerated in this build and the failing tests, and moves on. For endpoints, whose tests run the whole app, every implementation regenerated in the build is listed. The usual fix is an example on the dependency that covers the case, so its own tests catch it.
+
 ### Model escalation
 
 Each artifact starts on a cheaper model and moves up when it keeps failing. By default implementations start on `claude-haiku-4-5` and tests on `claude-sonnet-5`, both capped at `claude-opus-5`. After every `escalateAfter` (default 2) failed attempts, the next attempt runs on the next model up the ladder, and the conversation continues, so the stronger model sees the earlier attempts and their problems. `maxAttempts` counts attempts across all models: with `maxAttempts: 8`, an implementation gets Haiku twice, Sonnet twice, then Opus four times. Every generation starts again at `start`.

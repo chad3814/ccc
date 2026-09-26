@@ -10,7 +10,16 @@ import { readManifest, writeManifest } from '../src/manifest.js';
 import { approve, pendingApprovals } from '../src/approve.js';
 import { GeneratorUnavailable } from '../src/llm.js';
 import { FakeGenerator } from './fake-generator.js';
-import { CANNED_IMPL, PIPELINE_FILES, createPipelineProject, pipelineResponder, type Overrides } from './pipeline-fixture.js';
+import {
+  CANNED_IMPL,
+  CANNED_TESTS,
+  PIPELINE_FILES,
+  artifactOf,
+  conceptOf,
+  createPipelineProject,
+  pipelineResponder,
+  type Overrides,
+} from './pipeline-fixture.js';
 
 async function copyProject(root: string): Promise<string> {
   const copy = await mkdtemp(path.join(tmpdir(), 'ccc-build-'));
@@ -232,6 +241,36 @@ describe('runBuild', () => {
     const { result } = await build(root, {}, { only: 'hand', fresh: true, testsOnly: true });
     expect(result.ok).toBe(true);
     expect(result.generated).toEqual({ tests: ['hand'], impl: [] });
+  });
+
+  it('blames regenerated dependencies instead of regenerating a module whose tests they broke', async () => {
+    const strictHand = (CANNED_TESTS.hand ?? '').replace(
+      "    expect(hand.size()).toBe(1);\n",
+      "    expect(hand.size()).toBe(1);\n    expect(() => hand.add(card('A', '♥'))).not.toThrow();\n",
+    );
+    const root = await createPipelineProject();
+    expect((await build(root, { 'tests:hand': () => strictHand })).result.ok).toBe(true);
+    // sameCard ignoring suit still passes card's own tests.
+    const suitBlindCard = (CANNED_IMPL.card ?? '').replace('a.rank === b.rank && a.suit === b.suit', 'a.rank === b.rank');
+    const { fake, result } = await build(root, { 'impl:card': () => suitBlindCard }, { fresh: true });
+    expect(result.ok).toBe(false);
+    expect(fake.requests.filter((r) => artifactOf(r) === 'impl').map(conceptOf)).not.toContain('hand');
+    const blame = result.diagnostics.find((d) => d.file === 'concepts/hand.md' && d.severity === 'error');
+    expect(blame?.message).toContain("hand's current implementation passed these tests before and fails them now");
+    expect(blame?.message).toContain('regenerated in this build: card');
+    expect(blame?.message).toContain('[ex 1] adds a card to an empty hand');
+    expect(result.skipped).toContain('count-adds');
+  });
+
+  it('regenerates as usual when no dependency was regenerated', async () => {
+    const root = await copyProject(built);
+    await writeFileAtomic(root, modulePath('hand'), (CANNED_IMPL.hand ?? '').replace('throw new DuplicateCard', 'return; throw new DuplicateCard'));
+    const { manifest } = await readManifest(root);
+    manifest.files[modulePath('hand')] = (await fileHash(root, modulePath('hand'))) ?? '';
+    await writeManifest(root, manifest);
+    const { fake, result } = await build(root, {}, { only: 'hand', fresh: true });
+    expect(result.ok).toBe(true);
+    expect(fake.requests.filter((r) => artifactOf(r) === 'impl').map(conceptOf)).toEqual(['hand']);
   });
 
   it('keeps going after a failure, skipping only dependents', async () => {

@@ -10,7 +10,7 @@ import { dependenciesOf } from './graph.js';
 import { sha256 } from './hash.js';
 import type { ConceptId } from './ids.js';
 import { SERVER_FILE, WIRING_FILE } from './compose.js';
-import { checkModuleOnDisk, generateImpl } from './implgen.js';
+import { checkModuleOnDisk, generateImpl, inspectModuleOnDisk } from './implgen.js';
 import { collectExports } from './interfaces.js';
 import { implKey, testKey, type ExportsByConcept } from './keys.js';
 import { modulePath, testPath } from './layout.js';
@@ -18,7 +18,7 @@ import { GeneratorUnavailable, type Generator } from './llm.js';
 import type { Project } from './load.js';
 import { entryFor, hashFiles, listCccFiles, readManifest, writeManifest, type Manifest, type ManifestEntry } from './manifest.js';
 import type { Concept } from './parse.js';
-import { topologicalLevels } from './order.js';
+import { dependencyClosure, topologicalLevels } from './order.js';
 import { mapPool } from './pool.js';
 import { isHandwritten } from './schema.js';
 import { generateTests, type GenerateContext } from './testgen.js';
@@ -114,6 +114,41 @@ async function approvedTestsOnDisk(root: string, manifest: Manifest, concept: Co
     return null;
   }
   return { source, kept: entry.approvedTests === null ? null : await keptTests(concept.examples, source, entry.approvedTests) };
+}
+
+// When a module that passed its tests fails those same tests after its
+// dependencies were regenerated, the fault is in a dependency, and no
+// rewrite of this module can fix it. Returns the diagnosis, or null to
+// generate as usual. Endpoint tests run the whole app, syncs included, so
+// every implementation regenerated in this build is a suspect for them.
+async function dependencyBlame(
+  ctx: GenerateContext,
+  manifest: Manifest,
+  concept: Concept,
+  generated: BuildResult['generated'],
+): Promise<string | null> {
+  const id = concept.id;
+  const entry = manifest.concepts[id];
+  if (generated.tests.includes(id) || entry === undefined || entry.implKey === null) {
+    return null;
+  }
+  const closure = dependencyClosure(ctx.project, id);
+  const suspects = generated.impl.filter((dep) => dep !== id && (concept.frontmatter.kind === 'endpoint' || closure.has(dep)));
+  const recorded = manifest.files[modulePath(id)];
+  if (suspects.length === 0 || recorded === undefined || (await fileHash(ctx.root, modulePath(id))) !== recorded) {
+    return null;
+  }
+  const { staticProblems, testFailures } = await inspectModuleOnDisk(ctx, concept);
+  // A module that no longer type-checks may just need rewriting for a
+  // changed dependency interface.
+  if (staticProblems.length > 0 || testFailures.length === 0) {
+    return null;
+  }
+  return [
+    `${id}'s current implementation passed these tests before and fails them now, so a dependency changed behavior; not regenerating ${id}.`,
+    `regenerated in this build: ${suspects.join(', ')}. Check their examples for the case these tests exercise.`,
+    bullets(testFailures),
+  ].join('\n');
 }
 
 async function planBuild(
@@ -364,6 +399,13 @@ export async function runBuild(options: BuildOptions): Promise<BuildResult> {
             }
             const key = await implKey(concept, project, exportsByConcept, versions, await sha256(testSource));
             if (!fresh.impl.has(id) && (await isModuleCurrent(root, manifest, concept, key))) {
+              return;
+            }
+            const blame = await dependencyBlame(ctx, manifest, concept, result.generated);
+            if (blame !== null) {
+              failed.add(id);
+              result.diagnostics.push(error(concept.file, blame));
+              log(`impl   ${id}  FAILED (a regenerated dependency broke its tests)`);
               return;
             }
             let outcome;

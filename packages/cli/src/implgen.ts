@@ -23,10 +23,18 @@ function formatIssue(issue: ToolIssue): string {
   return issue.line === null ? `${issue.file}: ${issue.message}` : `${issue.file}:${issue.line}: ${issue.message}`;
 }
 
+export interface ModuleInspection {
+  // Type errors (including conformance), lint problems, runner errors, and
+  // skipped tests: problems in the module or its setup.
+  staticProblems: string[];
+  // Tests that ran and failed: behavior.
+  testFailures: string[];
+}
+
 // The checks a module must pass where it sits in .ccc/gen: its own files
 // type-check (including conformance to the interface), it lints clean, and
 // its approved tests pass.
-export async function checkModuleOnDisk(ctx: { root: string }, concept: Concept): Promise<string[]> {
+export async function inspectModuleOnDisk(ctx: { root: string }, concept: Concept): Promise<ModuleInspection> {
   const module = modulePath(concept.id);
   const test = testPath(concept.id);
   const conformance = conformancePath(concept.id);
@@ -38,19 +46,24 @@ export async function checkModuleOnDisk(ctx: { root: string }, concept: Concept)
   );
   const lintIssues = await lintFiles(ctx.root, [lintTarget]);
   const run = await runTests(ctx.root, [test]);
-  const problems = [
+  const staticProblems = [
     ...typeIssues.map(formatIssue),
     ...lintIssues.map(formatIssue),
     ...run.errors.map(formatIssue),
-    ...run.cases
-      .filter((testCase) => testCase.status === 'failed')
-      .map((testCase) => `test failed: ${testCase.name}: ${testCase.message.split('\n').slice(0, 6).join('\n')}`),
     ...run.cases.filter((testCase) => testCase.status === 'skipped').map((testCase) => `test skipped: ${testCase.name}`),
   ];
-  if (problems.length === 0 && run.cases.length === 0) {
-    problems.push(`no tests ran for ${test}`);
+  const testFailures = run.cases
+    .filter((testCase) => testCase.status === 'failed')
+    .map((testCase) => `test failed: ${testCase.name}: ${testCase.message.split('\n').slice(0, 6).join('\n')}`);
+  if (staticProblems.length === 0 && testFailures.length === 0 && run.cases.length === 0) {
+    staticProblems.push(`no tests ran for ${test}`);
   }
-  return problems;
+  return { staticProblems, testFailures };
+}
+
+export async function checkModuleOnDisk(ctx: { root: string }, concept: Concept): Promise<string[]> {
+  const { staticProblems, testFailures } = await inspectModuleOnDisk(ctx, concept);
+  return [...staticProblems, ...testFailures];
 }
 
 async function restore(root: string, rel: string, original: string | null): Promise<void> {
